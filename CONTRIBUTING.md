@@ -45,3 +45,6 @@ pre-commit run --all-files
 ```
 
 If a hook rewrites files, review the changes, stage them, and commit again.
+
+GitHub Actions runs the same pre-commit checks on pushes to `main` and on pull
+requests.
