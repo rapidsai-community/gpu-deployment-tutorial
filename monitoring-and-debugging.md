@@ -57,7 +57,7 @@ If `nvidia-smi` fails, stop. Don't debug the Python environment yet. Fix the VM,
 
 ## Install the terminal monitoring tools
 
-`nvidia-smi` is a good first sanity check, but it's coarse. For live monitoring, install `nvtop`:
+`nvidia-smi` is a good first sanity check, but it's coarse. For live monitoring, install [`nvtop`](https://github.com/Syllo/nvtop):
 
 ```bash
 sudo apt update
@@ -80,7 +80,7 @@ watch -n 0.5 nvidia-smi
 
 Reach for `watch nvidia-smi` when you want to see memory change over time. Reach for `nvtop` when you want to see whether a running process is keeping the GPU busy.
 
-For timeline profiling, install Nsight Systems. On a fresh VM you first need the NVIDIA CUDA apt repository, since the Nsight Systems package lives there:
+For timeline profiling, install [Nsight Systems](https://developer.nvidia.com/nsight-systems). Reach for it when the GPU looks busy but the workload is still slow: it lays out CPU/GPU memory transfers, CUDA API calls, kernel launches, and synchronization points on a single timeline. We install it now and use it in detail later in this section. On a fresh VM you first need the NVIDIA CUDA apt repository, since the Nsight Systems package lives there:
 
 ```bash
 wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
@@ -102,23 +102,11 @@ nsys --version
 nsys status --environment
 ```
 
-On some VMs, the CUDA toolkit wrapper appears first on `PATH` and reports that Nsight Systems wasn't installed with that toolkit. If that happens, invoke the system `nsys` binary directly:
-
-```bash
-/usr/local/bin/nsys --version
-```
-
-If `nsys` is found but refuses to run with a permission error, the Nsight Systems directory may be locked down. Make it readable:
-
-```bash
-sudo chmod 755 /opt/nvidia/nsight-systems
-```
-
-`nsys status --environment` may also warn that CPU sampling or context-switch tracing is restricted by the kernel. That warning doesn't block the CUDA timeline examples in this section. We use Nsight Systems here to see CUDA API activity, memory operations, and the shape of kernel launches.
-
-Don't add `--gpu-metrics-devices all` unless your VM permits GPU performance counters. On many cloud VMs it fails with an `ERR_NVGPUCTRPERM` permissions error, and we don't need GPU metrics for any of the timelines below.
+If `nsys` isn't found, refuses to run, or warns that sampling is restricted, see [Troubleshooting Nsight Systems](#troubleshooting-nsight-systems) at the end of this section before continuing.
 
 ## Check the Python environment
+
+The rest of this section works through an xarray + CuPy example on real climate data, so the environment needs those libraries (xarray, netCDF4, CuPy, and cupy-xarray) in addition to the profilers.
 
 Use the Python environment you created earlier in the tutorial. The exact package manager doesn't matter. What matters is that `python` points to the environment you need.
 
@@ -128,7 +116,13 @@ python --version
 python -m pip --version
 ```
 
-Install the packages used in this section if they aren't already present. The following is the CUDA 13 pip path used while validating this guide on a Brev VM:
+Install the packages used in this section if they aren't already present.
+
+If you're using conda or pixi, prefer the tutorial's environment recipe over copying the pip commands below directly. The point is that the active environment can import the packages and see the GPU.
+
+<!-- TODO: add the equivalent conda and pixi commands here once the environment recipe is finalized. -->
+
+The following is the CUDA 13 pip path used while validating this guide on a Brev VM:
 
 ```bash
 python -m pip install numpy pandas snakeviz cuda-python "cupy-cuda13x[ctk]" xarray netCDF4 cupy-xarray
@@ -136,8 +130,6 @@ python -m pip install "cuda-core[cu13]"
 ```
 
 `cuda-core[cu13]` provides the `cuda.core` import used below (plain `cuda-python` isn't enough). `xarray` and `netCDF4` let us open the climate dataset we'll use throughout, and `cupy-xarray` adds a `.cupy` accessor that moves an xarray object's data onto the GPU in place.
-
-If you're using conda or pixi, prefer the tutorial's environment recipe over copying these pip commands directly. The point is that the active environment can import the packages and see the GPU.
 
 Verify the imports:
 
@@ -162,7 +154,7 @@ If this block fails, fix the environment before proceeding. For example, if CuPy
 
 ## A Python view of the GPU with cuda.core
 
-We'll use `cuda.core` as the Python-side probe. This isn't a replacement for `nvidia-smi`. It answers a different question.
+We'll use [`cuda.core`](https://nvidia.github.io/cuda-python/cuda-core/latest/) as the Python-side probe. This isn't a replacement for `nvidia-smi`. It answers a different question.
 
 `nvidia-smi` answers: does the host driver see the GPU?
 
@@ -198,12 +190,23 @@ If both `nvidia-smi` and this script succeed, the host and the active Python run
 
 Both the host and our Python environment can see the GPU. Before we put a real workload on it, we need to understand a couple of concepts: how to time GPU work honestly, and why moving data is expensive.
 
-GPU work is often asynchronous. Python can enqueue work and keep executing before the GPU has finished. So timing like this is misleading:
+GPU work is often asynchronous. Python can enqueue work and keep executing before the GPU has finished. To see this, make a toy GPU array to perform operations on:
+
+```python
+import time
+
+import cupy as cp
+
+gpu_array = cp.arange(50_000_000, dtype=cp.float32)
+```
+
+So timing like this is misleading:
 
 ```python
 start = time.perf_counter()
 result = gpu_array * 2
 elapsed = time.perf_counter() - start
+print(f"without sync: {elapsed * 1e3:.3f} ms")  # misleadingly fast: the GPU may not be done
 ```
 
 To get a meaningful number, synchronize before stopping the timer:
@@ -213,6 +216,7 @@ start = time.perf_counter()
 result = gpu_array * 2
 cp.cuda.Stream.null.synchronize()
 elapsed = time.perf_counter() - start
+print(f"with sync: {elapsed * 1e3:.3f} ms")
 ```
 
 Even with `synchronize()`, treat these timings as good estimates, not production benchmarks. They're accurate enough to compare how long the GPU spent on a task, which is all we need here.
@@ -237,9 +241,9 @@ The examples below are variations on this idea. The naive GPU port we're about t
 
 We already have `nvidia-smi`, `nvtop`, and `cuda.core`. Three more tools fill out the kit, and it's worth knowing what each one answers before we reach for it.
 
-`cProfile` is Python's built-in CPU-side function profiler. It answers: which Python functions ran, how many times, and how much cumulative time did they consume? It's the right tool when the GPU looks idle, because Python preprocessing, parsing, or object construction can be a bottleneck before any GPU work begins.
+[`cProfile`](https://docs.python.org/3/library/profile.html) is Python's built-in CPU-side function profiler. It answers: which Python functions ran, how many times, and how much cumulative time did they consume? It's the right tool when the GPU looks idle, because Python preprocessing, parsing, or object construction can be a bottleneck before any GPU work begins.
 
-SnakeViz is a visual viewer for `cProfile` output. It doesn't collect any new data, but renders the `.prof` file in a browser so the dominant functions are easy to see.
+[SnakeViz](https://jiffyclub.github.io/snakeviz/) is a visual viewer for `cProfile` output. It doesn't collect any new data, but renders the `.prof` file in a browser so the dominant functions are easy to see.
 
 Nsight Systems is a system timeline profiler. The command-line tool is `nsys`. For Python GPU workloads it answers a different question from `cProfile`: what happened across the CPU threads, CUDA API calls, memory copies, synchronization points, and GPU kernels over time. It's especially good at spotting CPU/GPU transfers, gaps between kernels, many tiny launches, and synchronization points that force Python to wait. We use `nsys profile` to produce `.nsys-rep` files, which open in the Nsight Systems UI for inspection.
 
@@ -314,7 +318,7 @@ ds = xr.open_dataset("air.sig995.2025.nc")
 t0 = time.perf_counter()
 
 air = ds["air"]
-T = np.asarray(air)
+T = air.to_numpy()
 ntime, nlat, nlon = T.shape
 
 # Build X = anomalies (time x space)
@@ -347,6 +351,12 @@ Then profile it to see where the time actually goes:
 ```bash
 python -m cProfile -o profile-xarray-cpu.prof xarray_cpu_baseline.py
 python -m snakeviz profile-xarray-cpu.prof
+```
+
+SnakeViz starts a local web server (by default at `http://127.0.0.1:8080`). On a remote Brev VM that port isn't reachable from your laptop until you forward it. From your laptop, forward the port, then open the printed URL in your local browser:
+
+```bash
+brev port-forward <your-instance-name> -p 8080:8080
 ```
 
 <img src="images/snakeviz-xarray-cpu-baseline.png" alt="SnakeViz view of xarray_cpu_baseline.py" />
@@ -398,6 +408,8 @@ print("bottleneck: the matrix returns to CPU before the expensive SVD")
 PY
 ```
 
+> **Exercise:** before running it, predict the timing. This script does the data load, reshape, and mean-subtraction on the GPU, then runs the SVD. Will it beat the CPU baseline? Run it, then profile it the same way you profiled the baseline (`python -m cProfile -o profile-xarray-cupy-naive.prof xarray_cupy_naive.py`, then `python -m snakeviz profile-xarray-cupy-naive.prof`) and see which call still dominates the runtime.
+
 The mistake lives in these two lines:
 
 ```python
@@ -417,7 +429,11 @@ In a second terminal:
 nvtop
 ```
 
-This is the moment `nvtop` is the right tool. You'll see the GPU light up briefly while the data transfers over and the reshape and mean-subtraction run, then drop back to idle and sit there while the CPU grinds through the SVD. Seeing the GPU go idle in the middle of a run that's supposed to be "GPU accelerated" is the problem. Now, we want to know exactly what happened, in order, so we capture a timeline:
+This is the moment `nvtop` is the right tool. You'll see the GPU light up briefly while the data transfers over and the reshape and mean-subtraction run, then drop back to idle and sit there while the CPU grinds through the SVD. Seeing the GPU go idle in the middle of a run that's supposed to be "GPU accelerated" is the problem.
+
+### Going deeper with Nsight Systems
+
+`nvtop` told us *that* the GPU went idle. To see exactly what happened, and in what order, we reach for another tool and capture a timeline:
 
 ```bash
 nsys profile \
@@ -526,7 +542,7 @@ import xarray as xr
 
 
 ds = xr.open_dataset("air.sig995.2025.nc")
-T = np.asarray(ds["air"])  # shape (ntime, nlat, nlon)
+T = ds["air"].to_numpy()  # shape (ntime, nlat, nlon)
 ntime, nlat, nlon = T.shape
 T_flat = T.reshape(ntime, nlat * nlon)  # (ntime, ncells)
 
@@ -577,12 +593,12 @@ cat > preprocess_gpu_loop.py <<'PY'
 import time
 
 import cupy as cp
-import numpy as np
 import xarray as xr
+import cupy_xarray  # noqa: F401  # registers the .cupy accessor
 
 
 ds = xr.open_dataset("air.sig995.2025.nc")
-T = cp.asarray(np.asarray(ds["air"]))  # move the whole field to the GPU once
+T = ds["air"].cupy.as_cupy().data  # move the whole field to the GPU once
 ntime, nlat, nlon = T.shape
 T_flat = T.reshape(ntime, nlat * nlon)
 
@@ -611,7 +627,7 @@ print("bottleneck: one tiny GPU launch per cell, thousands of times")
 PY
 ```
 
-Run it and capture a timeline:
+Run it once for a clean timing number, then capture a timeline (the `nsys` run below executes the script again, this time under the profiler):
 
 ```bash
 python preprocess_gpu_loop.py
@@ -628,7 +644,7 @@ nsys profile \
 
 <img src="images/nsight-preprocess-gpu-loop.png" alt="Nsight Systems timeline of the per-cell GPU loop" />
 
-One viewing note for this run: at full zoom it looks like a single solid bar, because there are roughly 150,000 launches packed together. Zoom into a window of a few tens of microseconds and the individual tiny kernels (`cupy_mean`, `cupy_var`, and friends) separate out, each followed by a gap. That zoomed-in view shows the problem `cProfile` couldn't: a tightly packed row of very short kernel launches with thin gaps between them. Each cell triggers several tiny kernels, and at thousands of cells the launch overhead dominates the actual arithmetic. The GPU spends more time waiting between launches than computing. Using the GPU naively, one tiny operation at a time, is slower than the CPU loop, not faster.
+One viewing note for this run: at full zoom it looks like a single solid bar, because there are roughly 150,000 launches packed together. Zoom into a window of a few tens of microseconds and the individual tiny kernels (`cupy_mean`, `cupy_var`, and friends) separate out, each followed by a gap. `cProfile` and SnakeViz would flag the symptom here which is thousands of tiny CuPy calls with a high call count, but they measure Python-side time and can't show that the GPU sits idle between those launches. The timeline can: a tightly packed row of very short kernel launches with thin gaps between them. Each cell triggers several tiny kernels, and at thousands of cells the launch overhead dominates the actual arithmetic. The GPU spends more time waiting between launches than computing. Using the GPU naively, one tiny operation at a time, is slower than the CPU loop, not faster.
 
 The real fix is to stop looping and let one call process all the cells at once utilizing the strengths of a GPU.
 
@@ -643,7 +659,7 @@ import xarray as xr
 
 
 ds = xr.open_dataset("air.sig995.2025.nc")
-T = np.asarray(ds["air"])
+T = ds["air"].to_numpy()
 ntime, nlat, nlon = T.shape
 T_flat = T.reshape(ntime, nlat * nlon)
 
@@ -675,7 +691,30 @@ python preprocess_gpu_loop.py
 python preprocess_vectorized.py
 ```
 
-The vectorized version replaces thousands of per-cell calls with four calls that run across all cells at once. It should be far faster than both the CPU loop and the GPU loop. On the L4 we tested this on, the CPU loop ran about 0.7s, the per-cell GPU loop about 5s (slower, because of the launch overhead), and the vectorized version about 0.1s. Two lessons come out of this. First, the same vectorized shape is how you'd give the GPU work it likes: fewer, larger operations instead of many tiny ones. Second, notice that the vectorized version on the CPU is already fast, so for cheap preprocessing like this you may not need the GPU at all. The honest answer to "should this run on the GPU?" is sometimes no too, depending on the size of your workload.
+The vectorized version replaces thousands of per-cell calls with four calls that run across all cells at once. It should be far faster than both the CPU loop and the GPU loop. On the L4 we tested this on, the CPU loop ran about 0.7s, the per-cell GPU loop about 5s (slower, because of the launch overhead), and the vectorized version about 0.1s. Two lessons come out of this:
+
+- The same vectorized shape is how you'd give the GPU work it likes: fewer, larger operations instead of many tiny ones.
+- The vectorized version on the CPU is already fast, so for cheap preprocessing like this you may not need the GPU at all. The honest answer to "should this run on the GPU?" is sometimes no, depending on the size of your workload.
+
+## Troubleshooting Nsight Systems
+
+These come up the first time you run `nsys` on a fresh cloud VM.
+
+On some VMs, the CUDA toolkit wrapper appears first on `PATH` and reports that Nsight Systems wasn't installed with that toolkit. If that happens, invoke the system `nsys` binary directly:
+
+```bash
+/usr/local/bin/nsys --version
+```
+
+If `nsys` is found but refuses to run with a permission error, the Nsight Systems directory may be locked down. Make it readable:
+
+```bash
+sudo chmod 755 /opt/nvidia/nsight-systems
+```
+
+`nsys status --environment` may also warn that CPU sampling or context-switch tracing is restricted by the kernel. That warning doesn't block the CUDA timeline examples in this section.
+
+Don't add `--gpu-metrics-devices all` unless your VM permits GPU performance counters. On many cloud VMs it fails with an `ERR_NVGPUCTRPERM` permissions error, and we don't need GPU metrics for any of the timelines below.
 
 ## Key Takeaways
 
