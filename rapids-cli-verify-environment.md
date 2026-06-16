@@ -19,18 +19,20 @@ A few of the pieces it inspects, explained:
 - **NVIDIA driver:** The kernel driver that lets software talk to the GPU; its version is the number `nvidia-smi` reports.
 - **CUDA driver API version:** The newest CUDA release that driver can support (drivers are backward compatible).
 - **CUDA toolkit / runtime:** The CUDA libraries your packages were built against and load at run time, which cannot be newer than the driver supports.
-- **Compute capability:** A GPU's hardware feature level; RAPIDS requires 7.0 or higher.
-- **NVLink:** The high-speed interconnect between GPUs on multi-GPU machines.
+- **[Compute capability](https://developer.nvidia.com/cuda-gpus):** A GPU's hardware feature level; RAPIDS requires 7.0 or higher.
+- **[NVLink](https://www.nvidia.com/en-us/data-center/nvlink/):** The high-speed interconnect between GPUs on multi-GPU machines.
 
-Install it into the same environment as your RAPIDS packages, using whichever installer you set that environment up with:
+Install the RAPIDS CLI into the same environment as your RAPIDS packages (the one you set up earlier), so it reports on the environment you are actually using. With uv:
 
 ```bash
-pip install rapids-cli        # for uv: uv pip install rapids-cli
-# or
-conda install rapidsai::rapids-cli
+uv pip install rapids-cli
 ```
 
-On Brev, activate that environment first (for example `source .venv/bin/activate`) so the install and the environment it reports on are the same one.
+Or with conda:
+
+```bash
+conda install rapidsai::rapids-cli
+```
 
 ## `rapids doctor`: is my environment healthy?
 
@@ -45,7 +47,7 @@ All checks passed!
 
 Each core check answers one question:
 
-- **GPU present.** Is there at least one GPU, and is it at the required compute capability?
+- **GPU present.** Is there at least one GPU, and does it meet the compute capability RAPIDS requires (7.0 or higher)?
 - **CUDA driver.** Can we read the CUDA version the driver supports?
 - **CUDA toolkit vs driver.** Is the toolkit no newer than the driver supports?
 - **Memory ratio.** Is there at least roughly twice as much system memory as total GPU memory? Advisory (handy for Dask), not a hard requirement.
