@@ -1,14 +1,14 @@
 # Verify your environment with the RAPIDS CLI
 
-You just set up a GPU environment but before you build on it, two questions are worth answering: 
+You just set up a GPU environment but before you build on it, two questions are worth answering:
 
-- Did it actually work? 
-- What exactly did you get? 
+- Did it actually work?
+- What exactly did you get?
 
-[RAPIDS CLI](https://github.com/rapidsai/rapids-cli) allows you to answer these questions with two commands. 
+[RAPIDS CLI](https://github.com/rapidsai/rapids-cli) allows you to answer these questions with two commands.
 
-- `rapids doctor` tells you whether your environment is healthy, 
-- `rapids debug` tells you exactly what you have in that environment. 
+- `rapids doctor` tells you whether your environment is healthy,
+- `rapids debug` tells you exactly what you have in that environment.
 
 ## What the RAPIDS CLI does
 
