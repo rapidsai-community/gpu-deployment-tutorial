@@ -186,6 +186,28 @@ python gpu_probe_cuda_core.py
 
 If both `nvidia-smi` and this script succeed, the host and the active Python runtime both see the GPU. If `nvidia-smi` succeeds but this script fails, the host is fine but the Python environment is not. That's an environment issue, not a hardware issue, and it's worth catching now before we start using the GPU.
 
+## Profilers we'll use
+
+We already have `nvidia-smi`, `nvtop`, and `cuda.core`. Three more tools fill out the kit, and it's worth knowing what each one answers before we reach for it.
+
+[`cProfile`](https://docs.python.org/3/library/profile.html) is Python's built-in CPU-side function profiler. It answers: which Python functions ran, how many times, and how much cumulative time did they consume? It's the right tool when the GPU looks idle, because Python preprocessing, parsing, or object construction can be a bottleneck before any GPU work begins.
+
+[SnakeViz](https://jiffyclub.github.io/snakeviz/) is a visual viewer for `cProfile` output. It doesn't collect any new data, but renders the `.prof` file in a browser so the dominant functions are easy to see.
+
+Nsight Systems is a system timeline profiler. The command-line tool is `nsys`. For Python GPU workloads it answers a different question from `cProfile`: what happened across the CPU threads, CUDA API calls, memory copies, synchronization points, and GPU kernels over time. It's especially good at spotting CPU/GPU transfers, gaps between kernels, many tiny launches, and synchronization points that force Python to wait. We use `nsys profile` to produce `.nsys-rep` files, which open in the Nsight Systems UI for inspection.
+
+Which tool to reach for first depends on the symptom:
+
+| Symptom | First tool | Why |
+|---|---|---|
+| Host may not see the GPU | `nvidia-smi` | Confirms driver-level GPU visibility. |
+| Python may not see CUDA devices | `cuda.core` | Confirms the active Python runtime can inspect CUDA devices. |
+| GPU may be idle during a run | `nvtop` or `watch nvidia-smi` | Shows live utilization and process memory. |
+| Python preprocessing may dominate | `cProfile` and SnakeViz | Shows CPU-side function time. |
+| Transfers, launch gaps, or synchronization may dominate | `nsys` | Shows CPU/GPU timeline behavior. |
+
+With the tools mapped, let's understand a couple of GPU concepts.
+
 ## Timing GPU work correctly
 
 Both the host and our Python environment can see the GPU. Before we put a real workload on it, we need to understand a couple of concepts: how to time GPU work honestly, and why moving data is expensive.
@@ -225,6 +247,8 @@ Even with `synchronize()`, treat these timings as good estimates, not production
 
 The CPU and GPU have separate memory. A NumPy array lives in host memory. A CuPy array lives in device memory. Moving data from host to device is a CPU-to-GPU transfer, and moving it back is a GPU-to-CPU transfer.
 
+<!-- TODO(image): add a host/device memory diagram here — separate system RAM vs VRAM joined by a narrow PCIe link, with labeled H2D (cp.asarray) and D2H (.get()) arrows — to show why transfers cost. Pull a suitable diagram from the CUDA repo. Tracking issue: TBD. -->
+
 Those transfers aren't free. For a small workload, the transfer overhead can outweigh the benefit of GPU computation. For a larger workflow, repeated transfers can erase an otherwise good speedup. This is why just using the GPU isn't enough. The useful question is whether enough of the expensive work stayed on the GPU long enough to justify the transfer.
 
 Some rules of thumb to use:
@@ -237,27 +261,7 @@ Some rules of thumb to use:
 
 The examples below are variations on this idea. The naive GPU port we're about to write moves the matrix back to the CPU before the expensive step. The same mistake shows up in visualization, when someone pulls a full GPU array back to the host just to plot a small sample. The fix is symmetric: sample, aggregate, or filter on the GPU first, and transfer only the small result. The same logic applies to any "give me a peek at the data" operation, whether it feeds a plot, an inspection, or a downstream CPU library.
 
-## Profilers we'll use
-
-We already have `nvidia-smi`, `nvtop`, and `cuda.core`. Three more tools fill out the kit, and it's worth knowing what each one answers before we reach for it.
-
-[`cProfile`](https://docs.python.org/3/library/profile.html) is Python's built-in CPU-side function profiler. It answers: which Python functions ran, how many times, and how much cumulative time did they consume? It's the right tool when the GPU looks idle, because Python preprocessing, parsing, or object construction can be a bottleneck before any GPU work begins.
-
-[SnakeViz](https://jiffyclub.github.io/snakeviz/) is a visual viewer for `cProfile` output. It doesn't collect any new data, but renders the `.prof` file in a browser so the dominant functions are easy to see.
-
-Nsight Systems is a system timeline profiler. The command-line tool is `nsys`. For Python GPU workloads it answers a different question from `cProfile`: what happened across the CPU threads, CUDA API calls, memory copies, synchronization points, and GPU kernels over time. It's especially good at spotting CPU/GPU transfers, gaps between kernels, many tiny launches, and synchronization points that force Python to wait. We use `nsys profile` to produce `.nsys-rep` files, which open in the Nsight Systems UI for inspection.
-
-Which tool to reach for first depends on the symptom:
-
-| Symptom | First tool | Why |
-|---|---|---|
-| Host may not see the GPU | `nvidia-smi` | Confirms driver-level GPU visibility. |
-| Python may not see CUDA devices | `cuda.core` | Confirms the active Python runtime can inspect CUDA devices. |
-| GPU may be idle during a run | `nvtop` or `watch nvidia-smi` | Shows live utilization and process memory. |
-| Python preprocessing may dominate | `cProfile` and SnakeViz | Shows CPU-side function time. |
-| Transfers, launch gaps, or synchronization may dominate | `nsys` | Shows CPU/GPU timeline behavior. |
-
-With the tools mapped, let's see how they can be used on a real workload.
+Now lets work through a real workload on a dataset and understand what's happening under the surface
 
 ## Get the dataset
 
