@@ -5,14 +5,11 @@ This repository contains materials for the tutorial:
 
 ## Running the tutorial
 
-### Brev 
+### Brev
 
 For the in-person version of this tutorial we will use [NVIDIA Brev](https://brev.nvidia.com/)
 
 #### Content
 
-| module    | Link |
-| ----------- | ----------- |
-| |  |
-| |  |
-
+| module | Link |
+| --- | --- |

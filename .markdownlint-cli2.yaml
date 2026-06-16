@@ -1,0 +1,7 @@
+config:
+  # Disable line length checks so tutorial prose can wrap naturally.
+  MD013: false
+
+# Lint all Markdown files in the repository.
+globs:
+  - "**/*.md"
