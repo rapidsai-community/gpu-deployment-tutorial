@@ -1,6 +1,14 @@
 # Verify your environment with the RAPIDS CLI
 
-You just set up a GPU environment. Before you build on it, two questions are worth answering: did it actually work, and what exactly did you get? The manual answer is a scatter of commands: `nvidia-smi`, `python --version`, some hand-written pynvml, and poking around `/usr/local/cuda`. The RAPIDS CLI collapses that into two commands. `rapids doctor` tells you whether your environment is healthy, and `rapids debug` tells you exactly what you have.
+You just set up a GPU environment but before you build on it, two questions are worth answering: 
+
+- Did it actually work? 
+- What exactly did you get? 
+
+[RAPIDS CLI](https://github.com/rapidsai/rapids-cli) allows you to answer these questions with two commands. 
+
+- `rapids doctor` tells you whether your environment is healthy, 
+- `rapids debug` tells you exactly what you have in that environment. 
 
 ## What the RAPIDS CLI does
 
