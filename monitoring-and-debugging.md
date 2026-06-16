@@ -199,7 +199,7 @@ Nsight Systems is a system timeline profiler. The command-line tool is `nsys`. F
 Which tool to reach for first depends on the symptom:
 
 | Symptom | First tool | Why |
-|---|---|---|
+| --- | --- | --- |
 | Host may not see the GPU | `nvidia-smi` | Confirms driver-level GPU visibility. |
 | Python may not see CUDA devices | `cuda.core` | Confirms the active Python runtime can inspect CUDA devices. |
 | GPU may be idle during a run | `nvtop` or `watch nvidia-smi` | Shows live utilization and process memory. |
@@ -363,7 +363,7 @@ SnakeViz starts a local web server (by default at `http://127.0.0.1:8080`). On a
 brev port-forward <your-instance-name> -p 8080:8080
 ```
 
-<img src="images/snakeviz-xarray-cpu-baseline.png" alt="SnakeViz view of xarray_cpu_baseline.py" />
+![SnakeViz view of xarray_cpu_baseline.py](images/snakeviz-xarray-cpu-baseline.png)
 
 The largest block in the SnakeViz icicle chart should be the `svd` call (labeled `_linalg.py:...(svd)`), taking the large majority of the runtime. cProfile pools the time there. The reshape and mean-subtraction blocks are visibly smaller. If they weren't, a GPU port wouldn't have anything worth speeding up.
 
@@ -448,7 +448,7 @@ nsys profile \
   $(which python) xarray_cupy_naive.py
 ```
 
-<img src="images/nsight-xarray-cupy-naive.png" alt="Nsight Systems timeline of xarray_cupy_naive.py" />
+![Nsight Systems timeline of xarray_cupy_naive.py](images/nsight-xarray-cupy-naive.png)
 
 These timelines are dense, so here's how to read them. Time runs left to right. The rows under `CUDA HW` show what the GPU actually did: the `Kernels` row is GPU compute, and the `Memory` row is the host-to-device and device-to-host copies. When those rows are empty, the GPU is idle. You produce the `.nsys-rep` on the VM, but exploring the timeline needs the Nsight Systems desktop app, so download the file to your laptop and open it there, or just follow the annotated screenshots in this section.
 
@@ -516,7 +516,7 @@ nsys profile \
   $(which python) xarray_cupy_fixed.py
 ```
 
-<img src="images/nsight-xarray-cupy-fixed.png" alt="Nsight Systems timeline of xarray_cupy_fixed.py" />
+![Nsight Systems timeline of xarray_cupy_fixed.py](images/nsight-xarray-cupy-fixed.png)
 
 Compared with the naive version, the timeline shows no host-to-device or device-to-host memcpy in the middle of the run, and the long idle stretch is gone. The `Kernels` row stays busy straight through the SVD. That's the win.
 
@@ -584,7 +584,7 @@ python -m cProfile -o profile-cpu-preprocessing-bad.prof preprocess_cpu_loop.py
 python -m snakeviz profile-cpu-preprocessing-bad.prof
 ```
 
-<img src="images/snakeviz-cpu-preprocessing-bad.png" alt="SnakeViz view of the per-cell loop bottleneck" />
+![SnakeViz view of the per-cell loop bottleneck](images/snakeviz-cpu-preprocessing-bad.png)
 
 This is where `cProfile` and SnakeViz shine, and `nsys` wouldn't help: there's no GPU work to put on a timeline. Almost all the runtime sits inside `build_features_bad`, and the icicle shows why: it fragments into thousands of tiny per-cell numpy calls (`mean`, `std`, `max`/`min`, `var`, and the `reduce` operations beneath them), because each statistic runs once per grid cell across all 10,512 cells.
 
@@ -646,7 +646,7 @@ nsys profile \
   $(which python) preprocess_gpu_loop.py
 ```
 
-<img src="images/nsight-preprocess-gpu-loop.png" alt="Nsight Systems timeline of the per-cell GPU loop" />
+![Nsight Systems timeline of the per-cell GPU loop](images/nsight-preprocess-gpu-loop.png)
 
 One viewing note for this run: at full zoom it looks like a single solid bar, because there are roughly 150,000 launches packed together. Zoom into a window of a few tens of microseconds and the individual tiny kernels (`cupy_mean`, `cupy_var`, and friends) separate out, each followed by a gap. `cProfile` and SnakeViz would flag the symptom here which is thousands of tiny CuPy calls with a high call count, but they measure Python-side time and can't show that the GPU sits idle between those launches. The timeline can: a tightly packed row of very short kernel launches with thin gaps between them. Each cell triggers several tiny kernels, and at thousands of cells the launch overhead dominates the actual arithmetic. The GPU spends more time waiting between launches than computing. Using the GPU naively, one tiny operation at a time, is slower than the CPU loop, not faster.
 
