@@ -12,15 +12,25 @@ You just set up a GPU environment but before you build on it, two questions are 
 
 ## What the RAPIDS CLI does
 
-The RAPIDS CLI verifies that a RAPIDS environment is set up correctly and reports what you have installed. It bundles the checks you would otherwise run by hand (the GPU driver, the CUDA toolkit and how it lines up with the driver, your Python and library versions, and where CUDA lives) into two commands: `rapids doctor` and `rapids debug`.
+The RAPIDS CLI bundles the checks you would otherwise run by hand (the GPU driver, the CUDA toolkit and how it lines up with the driver, your Python and library versions, and where CUDA lives) into those two commands. It is also extensible, RAPIDS libraries register their own checks through a plugin system (the `rapids_doctor_check` entry point), and `rapids doctor` discovers and runs them automatically when those libraries are installed.
 
-Install it with pip or uv:
+A few of the pieces it inspects, explained:
+
+- **NVIDIA driver:** The kernel driver that lets software talk to the GPU; its version is the number `nvidia-smi` reports.
+- **CUDA driver API version:** The newest CUDA release that driver can support (drivers are backward compatible).
+- **CUDA toolkit / runtime:** The CUDA libraries your packages were built against and load at run time, which cannot be newer than the driver supports.
+- **Compute capability:** A GPU's hardware feature level; RAPIDS requires 7.0 or higher.
+- **NVLink:** The high-speed interconnect between GPUs on multi-GPU machines.
+
+Install it into the same environment as your RAPIDS packages, using whichever installer you set that environment up with:
 
 ```bash
-pip install rapids-cli        # or: uv pip install rapids-cli
+pip install rapids-cli        # for uv: uv pip install rapids-cli
+# or
+conda install rapidsai::rapids-cli
 ```
 
-On Brev, activate the uv virtual environment first (`source .venv/bin/activate`) so the install and the environment it reports on are the same one.
+On Brev, activate that environment first (for example `source .venv/bin/activate`) so the install and the environment it reports on are the same one.
 
 ## `rapids doctor`: is my environment healthy?
 
@@ -35,10 +45,10 @@ All checks passed!
 
 Each core check answers one question:
 
-- **GPU present.** Is there at least one GPU, and does it meet the minimum compute capability (7.0) that RAPIDS requires?
-- **CUDA driver.** Can we read the CUDA version the GPU driver supports?
-- **CUDA toolkit vs driver.** Is the installed CUDA toolkit something the driver actually supports? Drivers are backward compatible, so this fails only when the toolkit is newer than the driver, which is the classic broken install.
-- **Memory ratio.** Is there at least roughly twice as much system memory as total GPU memory? This is an advisory (handy for Dask), not a hard requirement.
+- **GPU present.** Is there at least one GPU, and is it at the required compute capability?
+- **CUDA driver.** Can we read the CUDA version the driver supports?
+- **CUDA toolkit vs driver.** Is the toolkit no newer than the driver supports?
+- **Memory ratio.** Is there at least roughly twice as much system memory as total GPU memory? Advisory (handy for Dask), not a hard requirement.
 - **NVLink.** On machines with two or more GPUs, are the NVLink connections active?
 
 A failed check doesn't just say "failed." It prints an actionable message telling you how to fix it. For a toolkit that is newer than the driver supports, for example, it tells you to either update the driver or recreate the environment with matching CUDA packages, and links to the CUDA compatibility docs.
@@ -73,7 +83,35 @@ gpu_check: GPU(s) detected: 1
 All checks passed!
 ```
 
-The verbose run shows two things. First, discovery: every check, including the six built-in ones above, is registered through the `rapids_doctor_check` entry point. RAPIDS libraries like cudf, cuml, and cugraph register their own checks the same way, so the discovered count grows with whatever RAPIDS packages you have installed.
+Discovery is the key part: every check, including the six built-ins above, is registered through the `rapids_doctor_check` entry point, and `doctor` runs whatever it finds, including checks shipped by RAPIDS libraries.
+
+## Library checks
+
+RAPIDS libraries register their own checks through the same `rapids_doctor_check` entry point, so installing one adds scoped, library-level smoketests to `rapids doctor` automatically. Each runs a tiny real operation to confirm the library actually works end to end on this machine, not just that the environment looks compatible.
+
+With cuML installed, for example, its four checks are discovered alongside the built-ins:
+
+```console
+$ rapids doctor --verbose
+🧑‍⚕️ Performing REQUIRED health check for RAPIDS
+Discovering checks
+...
+Found check 'cuml_import' provided by 'cuml.health_checks:import_check'
+Found check 'cuml_functional' provided by 'cuml.health_checks:functional_check'
+Found check 'cuml_accel_basic' provided by 'cuml.health_checks:accel_basic_check'
+Found check 'cuml_accel_cli' provided by 'cuml.health_checks:accel_cli_check'
+Discovered 10 checks
+...
+```
+
+Each verifies something concrete:
+
+- **`cuml_import`.** cuML imports cleanly.
+- **`cuml_functional`.** A `LinearRegression` can fit and predict.
+- **`cuml_accel_basic`.** `cuml.accel` installs and intercepts scikit-learn.
+- **`cuml_accel_cli`.** `python -m cuml.accel` runs scikit-learn code on the GPU.
+
+cuGraph ships a `cugraph_smoke_check` the same way. The more such libraries you install, the more `rapids doctor` answers not just "is my environment compatible?" but "does every RAPIDS library actually run here?"
 
 ## `rapids debug`: what exactly do I have?
 
@@ -120,7 +158,7 @@ Tools
 
 It prints a lot, including the full `nvidia-smi` table, your OS details, and every installed package. The fields that matter most after an install:
 
-- **Driver version and CUDA version.** It helps to keep three things straight. The NVIDIA kernel driver is the low-level driver (the `Driver Version` above, and the number `nvidia-smi` shows). The CUDA driver API version is the newest CUDA that driver can support (the `Cuda Version` above, here 13.0). The CUDA toolkit and runtime is what your libraries were built against and load at run time. A toolkit newer than the driver supports is the classic install problem, and it's exactly what the toolkit check in `rapids doctor` catches.
+- **Driver and CUDA versions.** `Driver Version` is the NVIDIA kernel driver (the number `nvidia-smi` shows); `Cuda Version` (13.0 here) is the newest CUDA that driver supports. A toolkit newer than this is the classic broken install, and it is exactly what the toolkit check in `rapids doctor` catches.
 - **Toolkit path.** `Cuda Runtime Path` is where your environment found the CUDA runtime, and `System Ctk` lists any toolkits installed under `/usr/local/cuda*`. On this VM `System Ctk` is empty and the runtime path points inside `site-packages`, which tells you CUDA came from pip wheels (the `cuda-toolkit` and `nvidia-cuda-*` packages) rather than a system install. Together they tell you which CUDA you are actually using when more than one could be present.
 - **Library and tool versions.** `Package Versions` lists every installed Python package and version, and `Tools` reports the build and packaging tools on your `PATH`. A tool that isn't installed shows as `None`, like `nvcc` and `cmake` here. This is the quickest way to confirm your RAPIDS libraries and build tools are the versions you expect.
 
@@ -153,7 +191,3 @@ This is what you paste into a bug report or GitHub issue when you ask for help. 
 ## When to reach for which
 
 Run `rapids doctor` when you want a yes or no on whether your environment is healthy. Run `rapids debug` (or `rapids debug --json`) when you need the details, or when you want to share exactly what you have while asking for help.
-
-## Future Scope
-
-Today `rapids doctor` mostly verifies that the driver, CUDA, and hardware are compatible with each other. The next step is scoped, library-level smoketests. Each RAPIDS library (cudf, cuml, cugraph, and so on) ships a small check, registered through the same `rapids_doctor_check` entry point, that runs a tiny real operation to confirm the library actually works end to end on this machine. Build a cuDF Series, fit a trivial cuML estimator, construct a small cugraph graph. As those land, `rapids doctor` becomes a single command that answers not just "is my environment compatible?" but "does every RAPIDS library I installed actually run here?" The entry-point mechanism already exists in `rapids-cli` currently, and libraries will be adopting it in the near future.
