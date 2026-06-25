@@ -9,4 +9,4 @@ globs:
 # Exclude the Marp slide deck: a deck uses inline HTML and one
 # top-level heading per slide, which the prose rules would otherwise flag.
 ignores:
-  - "00-introduction/**"
+  - "introduction/**"
