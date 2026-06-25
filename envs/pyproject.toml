@@ -7,7 +7,7 @@ dependencies = [
     "pandas",
     "snakeviz",
     "cuda-python",
-    "cupy-cuda13x[ctk]",
+    "cupy-cuda13x[ctk]>=14",
     "xarray",
     "netCDF4",
     "cupy-xarray",
