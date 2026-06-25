@@ -196,7 +196,7 @@ We already have `nvidia-smi`, `nvtop`, and `cuda.core`. Three more tools fill ou
 
 Nsight Systems is a system timeline profiler. The command-line tool is `nsys`. For Python GPU workloads it answers a different question from `cProfile`: what happened across the CPU threads, CUDA API calls, memory copies, synchronization points, and GPU kernels over time. It's especially good at spotting CPU/GPU transfers, gaps between kernels, many tiny launches, and synchronization points that force Python to wait. We use `nsys profile` to produce `.nsys-rep` files, which open in the Nsight Systems UI for inspection.
 
-Which tool to reach for first depends on the symptom:
+Which tool to use first depends on the symptom:
 
 | Symptom | First tool | Why |
 | --- | --- | --- |
