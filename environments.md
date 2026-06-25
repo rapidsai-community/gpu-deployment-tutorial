@@ -132,3 +132,57 @@ We will be using this environment in the following sections.
 #### Important Limitation
 
 When installing nightly or pre-release versions of packages, `uv` has an all-or-nothing strategy. It requires more explicit configuration when working with nightlies or pre-releases, and failing to do so can generate version conflicts and installation errors that are less common with `pip`. For more information, see the [uv pre-release compatibility documentation](https://docs.astral.sh/uv/pip/compatibility/#pre-release-compatibility).
+
+### conda
+
+#### Conda
+
+When installing libraries with conda each individual CUDA library can be installed as a conda package. So we don't need to ensure any of the CUDA libraries already exist in `/usr/local/cuda`.
+
+If you prefer to use `conda` then we need to install it first.
+
+```bash
+curl -L -O "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
+
+bash Miniforge3-$(uname)-$(uname -m).sh  # Follow the prompts and choose yes to update your shell profile to automatically initialize conda
+```
+
+> [!NOTE]
+> You'll need to source your `.bashrc` to make `conda` available in your current shell:
+
+```bash
+source ~/.bashrc
+```
+
+We'll create the environment from the `environment.yaml` file in `envs/`. Take a look at [envs/environment.yaml](envs/environment.yaml) to see the full list of dependencies.
+
+```bash
+conda env create -f envs/environment.yaml
+conda activate tutorial-env
+python -m ipykernel install --user --name tutorial-env --display-name "Scipy GPU deployment tutorial env"
+```
+
+Then we can import `cudf` and allocate some GPU memory
+
+```python
+import cudf
+s = cudf.Series(['a', 'aa', 'b'])
+s.apply(lambda x: len(x))
+```
+
+### Installing the JupyterLab NV Dashboard Extension
+
+We will be using the [jupyterlab-nvdashboard](https://github.com/rapidsai/jupyterlab-nvdashboard) extension to view GPU metrics directly in the JupyterLab interface.
+
+This extension must be installed separately from the conda environment. JupyterLab extensions need to be installed where the **JupyterLab server** runs, not where individual kernels run — so installing it inside `tutorial-env` would make it available as a Python package, but the JupyterLab UI would never see it.
+
+On Brev, the JupyterLab server runs from `/home/ubuntu/.venv/`, the system `uv` environment. From a terminal inside JupyterLab, first deactivate your conda environment so the system `uv` is used, then install and restart:
+
+```bash
+conda deactivate
+echo $VIRTUAL_ENV  # should show /home/ubuntu/.venv
+uv pip install jupyterlab-nvdashboard
+sudo systemctl restart jupyter.service
+```
+
+Exit and reopen the notebook, or refresh your browser. The GPU dashboard panels will now be available in the JupyterLab sidebar.
