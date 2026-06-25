@@ -1,0 +1,8 @@
+# Marp config for the intro deck. Lets you render with no extra flags:
+#   marp 00-introduction-and-gpu-stack.md            # -> HTML
+#   marp 00-introduction-and-gpu-stack.md --pdf
+#   marp 00-introduction-and-gpu-stack.md --pptx
+# Run from inside this folder so the theme and image paths resolve.
+themeSet: ./themes/nvidia.css
+html: true
+allowLocalFiles: true
