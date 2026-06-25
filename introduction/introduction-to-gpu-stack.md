@@ -4,82 +4,6 @@ theme: nvidia
 paginate: true
 ---
 
-<style>
-/* ---- helper styles for this deck (NVIDIA theme palette) ---- */
-section { font-size: 25px; }
-
-/* source caption under borrowed figures */
-.src { display:block; font-size:0.6em; color:var(--nv-grey-light); margin-top:6px; }
-.center { text-align:center; }
-.center img { border-radius:8px; }
-
-/* layered stack diagram */
-.stack { display: flex; flex-direction: column; gap: 5px; margin: 0.3em 0; }
-.layer {
-  padding: 8px 16px; border-radius: 6px; font-weight: 700; font-size: 0.92em;
-  border-left: 6px solid var(--nv-green); background: #f4f8ec; color: var(--nv-black);
-}
-.layer small { display: block; font-weight: 400; color: var(--nv-grey); font-size: 0.66em; }
-.layer.host { background: #eef0f2; border-left-color: var(--nv-grey); }
-.layer.hw   { background: #000; color: #fff; border-left-color: var(--nv-green); }
-.layer.hw small { color: var(--nv-grey-light); }
-
-/* pills / tags */
-.pill { display:inline-block; padding:2px 10px; border-radius:999px; font-size:0.7em;
-  font-weight:700; background:var(--nv-green); color:#fff; }
-.pill.grey { background:var(--nv-grey); }
-.muted { color: var(--nv-grey); }
-
-/* card grids */
-.cards  { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:0.4em; }
-.cards3 { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:0.5em; }
-.card  { background:#f6f7f8; border-radius:8px; padding:10px 16px; border-top:4px solid var(--nv-green); }
-.card h3 { margin:0 0 3px; color:var(--nv-black); }
-.card p  { margin:0; font-size:0.8em; color:var(--nv-grey); }
-
-/* horizontal flow */
-.flow { display:flex; align-items:center; gap:7px; flex-wrap:wrap; margin-top:0.4em; font-weight:700; }
-.flow .step { background:#f4f8ec; border:1px solid var(--nv-green); border-radius:6px; padding:6px 12px; }
-.flow .arrow { color:var(--nv-green); font-weight:700; }
-
-/* "few vs many cores" infographic */
-.coresrow { display:flex; gap:60px; justify-content:center; align-items:center; margin-top:0.5em; }
-.corebox { text-align:center; }
-.corebox .cap { font-weight:700; margin-bottom:8px; }
-.cpu-grid { display:grid; grid-template-columns:repeat(2,52px); gap:10px; justify-content:center; }
-.cpu-grid div { height:52px; background:var(--nv-grey); border-radius:7px; }
-.gpu-grid { display:grid; grid-template-columns:repeat(14,15px); gap:3px; }
-.gpu-grid div { height:15px; background:var(--nv-green); border-radius:2px; }
-
-/* CPU/GPU memory + narrow link infographic */
-.xfer { display:flex; align-items:center; justify-content:center; gap:0; margin-top:0.5em; }
-.dev { border:2px solid var(--nv-grey-light); border-radius:10px; padding:14px 18px; width:250px; text-align:center; }
-.dev.gpu { border-color:var(--nv-green); }
-.dev .name { font-weight:700; }
-.dev .hw { margin-top:8px; height:13px; border-radius:7px; background:var(--nv-green); }
-.dev .cap { font-size:0.66em; color:var(--nv-grey); margin-top:5px; }
-.link { width:120px; text-align:center; color:var(--nv-grey); font-size:0.66em; }
-.link .thin { height:4px; background:var(--nv-grey); margin:6px 10px; border-radius:2px; }
-
-/* sequential vs parallel timeline */
-.tl { display:flex; gap:70px; justify-content:center; margin-top:0.5em; }
-.tlcol { text-align:center; }
-.tlcol .h { font-weight:700; margin-bottom:10px; }
-.seqbar { display:flex; gap:3px; }
-.seqbar div { width:13px; height:20px; background:var(--nv-grey); border-radius:2px; }
-.parstack { display:flex; flex-direction:column; gap:4px; align-items:center; }
-.parstack div { width:55px; height:9px; background:var(--nv-green); border-radius:2px; }
-.tlcol .t { font-size:0.66em; color:var(--nv-grey); margin-top:8px; }
-
-/* kernels -> one Python call infographic */
-.kernwrap { display:flex; align-items:center; justify-content:center; gap:24px; margin-top:0.4em; }
-.kernels { display:flex; flex-wrap:wrap; gap:6px; max-width:600px; }
-.kernels span { background:#f4f8ec; border:1px solid var(--nv-green); border-radius:5px; padding:4px 9px; font-size:0.7em; font-weight:600; color:var(--nv-black); }
-.bigarrow { color:var(--nv-green); font-weight:800; font-size:1.7em; }
-.callbox { border:2px solid var(--nv-green); border-radius:10px; padding:16px 18px; text-align:center; font-weight:700; width:185px; }
-.callbox small { display:block; font-weight:400; color:var(--nv-grey); font-size:0.7em; margin-top:4px; }
-</style>
-
 <!-- _class: title -->
 <!-- _paginate: false -->
 
@@ -138,17 +62,11 @@ SciPy 2026 · GPU Deployment & Debugging Tutorial ·
 
 <div class="coresrow">
 <div class="corebox"><div class="cap">CPU</div>
-<div class="cpu-grid"><div></div><div></div><div></div><div></div></div>
+<img class="ig" src="images/infographics/cpu-cores.svg" />
 <div class="muted" style="font-size:0.7em; margin-top:8px;">a few powerful cores</div>
 </div>
 <div class="corebox"><div class="cap">GPU</div>
-<div class="gpu-grid">
-<div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
-<div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
-<div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
-<div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
-<div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div>
-</div>
+<img class="ig" src="images/infographics/gpu-cores.svg" />
 <div class="muted" style="font-size:0.7em; margin-top:8px;">many simple cores</div>
 </div>
 </div>
@@ -176,13 +94,9 @@ SciPy 2026 · GPU Deployment & Debugging Tutorial ·
 
 ---
 
-# The slow part is getting data *across*
+<!-- _class: bw -->
 
-<style scoped>
-.dev .hw { height: 24px; }
-.link { width: 150px; }
-.link .thin { height: 2px; margin: 8px 12px; }
-</style>
+# The slow part is getting data *across*
 
 <div class="xfer">
 <div class="dev"><div class="name">CPU + RAM</div><div class="hw" style="background:var(--nv-grey);"></div><div class="cap">high memory bandwidth</div></div>
@@ -224,11 +138,11 @@ The GPU runs **one operation across thousands of elements at once**, one **threa
 
 <div class="tl">
 <div class="tlcol"><div class="h">Sequential</div>
-<div class="seqbar"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>
+<img class="ig" src="images/infographics/seqbar.svg" />
 <div class="t">one after another → time →</div>
 </div>
 <div class="tlcol"><div class="h">Parallel</div>
-<div class="parstack"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>
+<img class="ig" src="images/infographics/parstack.svg" />
 <div class="t">all at once → done sooner</div>
 </div>
 </div>
@@ -304,11 +218,9 @@ The GPU runs **one operation across thousands of elements at once**, one **threa
 
 ---
 
-# What is CUDA, and why C?
+<!-- _class: cudaslide -->
 
-<style scoped>
-section { padding-top: 30px; padding-bottom: 22px; }
-</style>
+# What is CUDA, and why C?
 
 <div class="columns">
 <div>
@@ -421,16 +333,13 @@ RAPIDS packages thousands of **optimized GPU kernels** behind APIs you already k
 - RAPIDS bundles them behind the **APIs you already know**
 - You write familiar Python; **RAPIDS runs the CUDA for you**
 
-> *How much* faster on real data? You'll **measure that yourself in Section 4.**
+> *How much* faster on real data? We'll explore that in this tutorial
 
 ---
 
-# Putting it all together
+<!-- _class: stackslide -->
 
-<style scoped>
-h1 { font-size: 1.5em; margin-bottom: 0.1em; }
-section { padding-top: 26px; padding-bottom: 26px; }
-</style>
+# Putting it all together
 
 <div class="stack">
   <div class="layer">Your code &amp; notebooks <small>pandas, scikit-learn, NumPy, your scripts</small></div>

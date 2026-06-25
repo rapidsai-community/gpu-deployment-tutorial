@@ -17,6 +17,11 @@ styled preview. Point it at the theme via your settings:
 }
 ```
 
+## Theme
+
+The slides use a specific Marp theme (`themes/nvidia.css`). It is
+**bundled in this folder**, so there is no external link to fetch, the settings above and `.marprc.yml` both point at the local copy. The deck-specific helper styles (for the infographic slides) live at the bottom of that file, so the slide Markdown itself stays clean.
+
 ## Render
 
 ```bash
