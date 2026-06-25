@@ -1,0 +1,18 @@
+[project]
+name = "rapids-env"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy",
+    "pandas",
+    "snakeviz",
+    "cuda-python",
+    "cupy-cuda13x[ctk]",
+    "xarray",
+    "netCDF4",
+    "cupy-xarray",
+    "cuda-core[cu13]",
+    "cudf-cu13==26.6.*",
+    "cuml-cu13==26.6.*",
+    "jupyterlab-nvdashboard>=0.15",
+]
