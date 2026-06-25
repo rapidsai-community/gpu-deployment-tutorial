@@ -186,3 +186,39 @@ sudo systemctl restart jupyter.service
 ```
 
 Exit and reopen the notebook, or refresh your browser. The GPU dashboard panels will now be available in the JupyterLab sidebar.
+
+### pixi
+
+Pixi follows the same approach as conda — packages come from the same channels (rapidsai, conda-forge, nvidia) and the same dependencies — but it is faster, generates a lockfile by default, and does not require an activation step. It can also mix conda and PyPI packages in the same environment via a `[pypi-dependencies]` section, with unified dependency resolution between the two — though all our dependencies are available on conda-forge so we don't need it here.
+
+#### Installing pixi
+
+```bash
+curl -fsSL https://pixi.sh/install.sh | sh
+source ~/.bashrc
+```
+
+#### Creating a Pixi Environment
+
+We'll use the `pixi.toml` file in `envs/`. Take a look at [envs/pixi.toml](envs/pixi.toml) to see the full list of dependencies.
+
+```bash
+cd envs/
+pixi install
+```
+
+Pixi creates its environment under `.pixi/envs/` inside the project directory and generates a `pixi.lock` file that pins every dependency exactly.
+
+#### Registering the Kernel in JupyterLab
+
+Since pixi manages its own isolated environment, you need to register it as a Jupyter kernel so it is available in JupyterLab:
+
+```bash
+pixi run python -m ipykernel install --user --name tutorial-env --display-name "Scipy GPU deployment tutorial env"
+```
+
+Then select the `Scipy GPU deployment tutorial env` kernel when opening a notebook.
+
+#### NV Dashboard Extension on Brev with Pixi
+
+The same caveat applies as with conda — `jupyterlab-nvdashboard` must be installed into the Brev system `.venv`, not into the pixi environment. Follow the [instructions above](#installing-the-jupyterlab-nv-dashboard-extension).
