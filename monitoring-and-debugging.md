@@ -354,7 +354,7 @@ Then profile it to see where the time actually goes:
 
 ```bash
 python -m cProfile -o profile-xarray-cpu.prof xarray_cpu_baseline.py
-python -m snakeviz profile-xarray-cpu.prof
+python -m snakeviz -s profile-xarray-cpu.prof
 ```
 
 SnakeViz starts a local web server (by default at `http://127.0.0.1:8080`). On a remote Brev VM that port isn't reachable from your laptop until you forward it. From your laptop, forward the port, then open the printed URL in your local browser:
@@ -581,7 +581,7 @@ Run it and profile it:
 ```bash
 python preprocess_cpu_loop.py
 python -m cProfile -o profile-cpu-preprocessing-bad.prof preprocess_cpu_loop.py
-python -m snakeviz profile-cpu-preprocessing-bad.prof
+python -m snakeviz -s profile-cpu-preprocessing-bad.prof
 ```
 
 ![SnakeViz view of the per-cell loop bottleneck](images/snakeviz-cpu-preprocessing-bad.png)
