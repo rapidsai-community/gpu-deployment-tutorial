@@ -1,6 +1,6 @@
 # Monitoring and Debugging GPU Python Workloads
 
-Moving a Python workload onto a GPU doesn't automatically make the full workflow faster in some scenarios. The GPU can execute parallel work very quickly, but the workflow still has overheads for cold starts, data movement, Python overhead, synchronization, and any CPU-only stages left in the path. If your GPU code runs but doesn't get the speedup you expected, or if the GPU looks idle while the program is busy, the cause is almost always one of those costs rather than the GPU itself.
+Moving a Python workload onto a GPU doesn't automatically make the full workflow faster in every scenario. The GPU can execute parallel work very quickly, but the workflow still has overheads for cold starts, data movement, Python overhead, synchronization, and any CPU-only stages left in the path. If your GPU code runs but doesn't get the speedup you expected, or if the GPU looks idle while the program is busy, the cause is almost always one of those costs rather than the GPU itself.
 
 This section gives you the tools to diagnose those overheads and fix them. We'll use terminal monitoring tools, Python profilers, and GPU timeline traces to answer one question: which part of this workflow is the limiter, and how do we make it faster?
 
@@ -51,7 +51,7 @@ For a detailed dump suitable for a support report:
 nvidia-smi -q
 ```
 
-How should we read this? It confirms that the host driver can see the GPU, and it reports the driver version and the CUDA compatibility level. It does not confirm that your Python environment is healthy. That distinction matters because the host can have a working driver while your active Python environment is missing CUDA runtime libraries or contains incompatible packages.
+How should we read this? If `nvidia-smi` successfully prints that information it confirms that the host driver can see the GPU, and it reports the driver version and the CUDA compatibility level. It does not confirm that your Python environment is healthy. That distinction matters because the host can have a working driver while your active Python environment is missing CUDA runtime libraries or contains incompatible packages.
 
 If `nvidia-smi` fails, stop. Don't debug the Python environment yet. Fix the VM, driver, or container/runtime layer first.
 
@@ -75,12 +75,12 @@ Press `q` to quit.
 You can also poll `nvidia-smi` on a tight interval:
 
 ```bash
-watch -n 0.5 nvidia-smi
+watch -n 1 nvidia-smi
 ```
 
-Reach for `watch nvidia-smi` when you want to see memory change over time. Reach for `nvtop` when you want to see whether a running process is keeping the GPU busy.
+Reach for `watch nvidia-smi` when you want to see snapshots of the current GPU state. Use `nvtop` when you want to see a timeline to check whether a running process is keeping the GPU busy.
 
-For timeline profiling, install [Nsight Systems](https://developer.nvidia.com/nsight-systems). Reach for it when the GPU looks busy but the workload is still slow: it lays out CPU/GPU memory transfers, CUDA API calls, kernel launches, and synchronization points on a single timeline. We install it now and use it in detail later in this section. On a fresh VM you first need the NVIDIA CUDA apt repository, since the Nsight Systems package lives there:
+For fine-grained timeline profiling, install [Nsight Systems](https://developer.nvidia.com/nsight-systems). This tool is great for it when the GPU looks busy but the workload is still slow: it lays out CPU/GPU memory transfers, CUDA API calls, kernel launches, and synchronization points on a single timeline. We install it now and use it in detail later in this section. On a fresh VM you first need the NVIDIA CUDA apt repository, since the Nsight Systems package lives there:
 
 ```bash
 wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
