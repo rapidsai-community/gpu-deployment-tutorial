@@ -15,4 +15,5 @@ dependencies = [
     "cudf-cu13==26.6.*",
     "cuml-cu13==26.6.*",
     "jupyterlab-nvdashboard>=0.15",
+    "rapids-cli>=0.2.0",
 ]
