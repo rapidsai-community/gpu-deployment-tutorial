@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
+
 #!/usr/bin/env python3
 
 import urllib.request
@@ -27,15 +30,17 @@ def download_file(url, filename, description):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Download datasets for RAPIDS tutorial")
+    parser = argparse.ArgumentParser(
+        description="Download datasets for RAPIDS tutorial"
+    )
     parser.add_argument("--all", action="store_true", help="Download all datasets")
-    
+
     parser.add_argument(
         "--nyc-parking",
         action="store_true",
         help="Download NYC parking violations dataset",
     )
-    
+
     args = parser.parse_args()
 
     # If no specific flags are provided, show help and exit
@@ -46,7 +51,6 @@ def main():
     print("Checking and downloading datasets...")
     create_data_directory()
 
-
     if args.all or args.nyc_parking:
         download_file(
             "https://data.rapids.ai/datasets/nyc_parking/nyc_parking_violations_2022.parquet",
@@ -56,5 +60,6 @@ def main():
 
     print("Download complete!")
 
+
 if __name__ == "__main__":
-    main() 
+    main()

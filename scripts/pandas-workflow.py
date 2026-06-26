@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION.
+# SPDX-License-Identifier: Apache-2.0
+
 import pandas as pd
 import time
 from pathlib import Path
@@ -30,7 +33,9 @@ result_1 = (
     df[["Registration State", "Violation Description"]]  # get only these two columns
     .value_counts()  # get the count of violations per state and per type of offence
     .groupby("Registration State")  # group by state
-    .head(1)  # get the first row in each group (the type of violation with the largest count)
+    .head(
+        1
+    )  # get the first row in each group (the type of violation with the largest count)
     .sort_index()  # sort by state name
     .reset_index()
 )
@@ -63,18 +68,14 @@ start = time.time()
 df["Issue Date"] = df["Issue Date"].astype("datetime64[ms]")
 df["issue_weekday"] = df["Issue Date"].dt.weekday.map(weekday_names)
 result_3 = (
-    df.groupby(["issue_weekday"])["Summons Number"]
-    .count()
-    .sort_values(ascending=False)
+    df.groupby(["issue_weekday"])["Summons Number"].count().sort_values(ascending=False)
 )
 end = time.time()
 print(f"Operation 3 (weekday violation counts): {end - start:.4f} seconds")
 
 
 start = time.time()
-result_5 = (
-    df.groupby("Violation County").size().sort_values(ascending=False).head(10)
-)
+result_5 = df.groupby("Violation County").size().sort_values(ascending=False).head(10)
 end = time.time()
 print(f"Operation 5 (groupby county + size + head): {end - start:.4f} seconds")
 
