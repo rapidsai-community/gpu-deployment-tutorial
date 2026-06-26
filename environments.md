@@ -38,7 +38,13 @@ installed at the system level in `/usr/local/cuda`. Let's check that:
 ls -ld /usr/local/cuda*
 ```
 
-If these are missing we need to decide how to get those dependencies. The way we
+In Brev we get:
+
+```bash
+ls: cannot access '/usr/local/cuda*': No such file or directory
+```
+
+Which means these are missing and we need to decide how to get those dependencies. The way we
 do this is different depending on whether we want to use `pip/uv` or `conda` or `pixi`
 for our Python package manager.
 
@@ -65,7 +71,14 @@ for our Python package manager.
 #### Installing uv
 
 `uv` by Astral, has become a popular choice to install packages via pip. In this
-tutorial we will show case how you can create your environment using `uv`.
+tutorial we will show case how you can create your environment using `uv`. Check
+if uv is present
+
+```bash
+which uv
+/home/ubuntu/.local/bin/uv
+
+```
 
 > [!NOTE]
 > Brev already has `uv` installed and manages an active `.venv` at `~/.venv` that powers the JupyterLab session. We want to install our packages into that same environment so they are available in our notebooks without any extra kernel configuration.
@@ -89,13 +102,46 @@ source ~/.bashrc
 When we check the driver version (`nvidia-smi`) we noticed that we have CUDA 13
 drivers, so we will install the `cu13` versions of these packages.
 
-We'll manage our environment using a `pyproject.toml` that lives under `envs/` in this repository. Take a look at `envs/pyproject.toml` to see the full list of dependencies that we will be using along this tutorial.
+We'll manage our environment using a `pyproject.toml` that lives under `envs/` in
+this repository. Take a look at `envs/pyproject.toml` to see the full list of
+dependencies that we will be using along this tutorial.
 
-Navigate to that directory and sync all dependencies into the Brev `.venv`:
+Check to see if there is an existing `.venv` in Brev:
+
+```bash
+$test -d .venv && echo ".venv exists" || echo "no .venv"
+.venv exists
+```
+
+To check if it's active, run  
+
+```bash
+echo $VIRTUAL_ENV
+```
+
+if it returns nothing, that means it's not active, we can will activate it:
+
+```bash
+source .venv/bin/activate
+```
+
+You'll see the (.venv) prefix was added to your shell prompt.
+
+Navigate to that `/envs` directory and sync all dependencies into the Brev `.venv`:
 
 ```bash
 cd envs/
 UV_PROJECT_ENVIRONMENT=~/.venv uv sync
+```
+
+### JupyterLab nvdashboard extra step
+
+One of the packages we installed is the `jupyterlab-nvdahsboard` extension, for
+this extension to take effect, in Brev we need to restart teh jupyter service,
+in the terminal run:
+
+```bash
+sudo systemctl restart jupyter.service
 ```
 
 > [!NOTE]
@@ -133,9 +179,7 @@ We will be using this environment in the following sections.
 
 When installing nightly or pre-release versions of packages, `uv` has an all-or-nothing strategy. It requires more explicit configuration when working with nightlies or pre-releases, and failing to do so can generate version conflicts and installation errors that are less common with `pip`. For more information, see the [uv pre-release compatibility documentation](https://docs.astral.sh/uv/pip/compatibility/#pre-release-compatibility).
 
-### conda
-
-#### Conda
+### Conda
 
 When installing libraries with conda each individual CUDA library can be installed as a conda package. So we don't need to ensure any of the CUDA libraries already exist in `/usr/local/cuda`.
 
