@@ -1,6 +1,6 @@
 # Monitoring and Debugging GPU Python Workloads
 
-Moving a Python workload onto a GPU doesn't automatically make the full workflow faster in some scenarios. The GPU can execute parallel work very quickly, but the workflow still has overheads for cold starts, data movement, Python overhead, synchronization, and any CPU-only stages left in the path. If your GPU code runs but doesn't get the speedup you expected, or if the GPU looks idle while the program is busy, the cause is almost always one of those costs rather than the GPU itself.
+Moving a Python workload onto a GPU doesn't automatically make the full workflow faster in every scenario. The GPU can execute parallel work very quickly, but the workflow still has overheads for cold starts, data movement, Python overhead, synchronization, and any CPU-only stages left in the path. If your GPU code runs but doesn't get the speedup you expected, or if the GPU looks idle while the program is busy, the cause is almost always one of those costs rather than the GPU itself.
 
 This section gives you the tools to diagnose those overheads and fix them. We'll use terminal monitoring tools, Python profilers, and GPU timeline traces to answer one question: which part of this workflow is the limiter, and how do we make it faster?
 
@@ -51,7 +51,7 @@ For a detailed dump suitable for a support report:
 nvidia-smi -q
 ```
 
-How should we read this? It confirms that the host driver can see the GPU, and it reports the driver version and the CUDA compatibility level. It does not confirm that your Python environment is healthy. That distinction matters because the host can have a working driver while your active Python environment is missing CUDA runtime libraries or contains incompatible packages.
+How should we read this? If `nvidia-smi` successfully prints that information it confirms that the host driver can see the GPU, and it reports the driver version and the CUDA compatibility level. It does not confirm that your Python environment is healthy. That distinction matters because the host can have a working driver while your active Python environment is missing CUDA runtime libraries or contains incompatible packages.
 
 If `nvidia-smi` fails, stop. Don't debug the Python environment yet. Fix the VM, driver, or container/runtime layer first.
 
@@ -75,12 +75,12 @@ Press `q` to quit.
 You can also poll `nvidia-smi` on a tight interval:
 
 ```bash
-watch -n 0.5 nvidia-smi
+watch -n 1 nvidia-smi
 ```
 
-Reach for `watch nvidia-smi` when you want to see memory change over time. Reach for `nvtop` when you want to see whether a running process is keeping the GPU busy.
+Reach for `watch nvidia-smi` when you want to see snapshots of the current GPU state. Use `nvtop` when you want to see a timeline to check whether a running process is keeping the GPU busy.
 
-For timeline profiling, install [Nsight Systems](https://developer.nvidia.com/nsight-systems). Reach for it when the GPU looks busy but the workload is still slow: it lays out CPU/GPU memory transfers, CUDA API calls, kernel launches, and synchronization points on a single timeline. We install it now and use it in detail later in this section. On a fresh VM you first need the NVIDIA CUDA apt repository, since the Nsight Systems package lives there:
+For fine-grained timeline profiling, install [Nsight Systems](https://developer.nvidia.com/nsight-systems). This tool is great for it when the GPU looks busy but the workload is still slow: it lays out CPU/GPU memory transfers, CUDA API calls, kernel launches, and synchronization points on a single timeline. We install it now and use it in detail later in this section. On a fresh VM you first need the NVIDIA CUDA apt repository, since the Nsight Systems package lives there:
 
 ```bash
 wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
@@ -196,7 +196,7 @@ We already have `nvidia-smi`, `nvtop`, and `cuda.core`. Three more tools fill ou
 
 Nsight Systems is a system timeline profiler. The command-line tool is `nsys`. For Python GPU workloads it answers a different question from `cProfile`: what happened across the CPU threads, CUDA API calls, memory copies, synchronization points, and GPU kernels over time. It's especially good at spotting CPU/GPU transfers, gaps between kernels, many tiny launches, and synchronization points that force Python to wait. We use `nsys profile` to produce `.nsys-rep` files, which open in the Nsight Systems UI for inspection.
 
-Which tool to reach for first depends on the symptom:
+Which tool to use first depends on the symptom:
 
 | Symptom | First tool | Why |
 | --- | --- | --- |
@@ -354,7 +354,7 @@ Then profile it to see where the time actually goes:
 
 ```bash
 python -m cProfile -o profile-xarray-cpu.prof xarray_cpu_baseline.py
-python -m snakeviz profile-xarray-cpu.prof
+python -m snakeviz -s profile-xarray-cpu.prof
 ```
 
 SnakeViz starts a local web server (by default at `http://127.0.0.1:8080`). On a remote Brev VM that port isn't reachable from your laptop until you forward it. From your laptop, forward the port, then open the printed URL in your local browser:
@@ -581,7 +581,7 @@ Run it and profile it:
 ```bash
 python preprocess_cpu_loop.py
 python -m cProfile -o profile-cpu-preprocessing-bad.prof preprocess_cpu_loop.py
-python -m snakeviz profile-cpu-preprocessing-bad.prof
+python -m snakeviz -s profile-cpu-preprocessing-bad.prof
 ```
 
 ![SnakeViz view of the per-cell loop bottleneck](images/snakeviz-cpu-preprocessing-bad.png)

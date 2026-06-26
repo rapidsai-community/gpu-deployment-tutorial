@@ -38,4 +38,7 @@ Once your VM is deployed, follow the Brev access instructions provided for your 
   - `brev ls` to list your VMs
   - `brev shell <your vm name>` to connect via SSH
 
+> [!NOTE]
+> You can also run `brev refresh` which adds all of your VMs to your `~/.ssh/config` which allows you to run `ssh <your vm name>` directly. This is especially helpful if you want to use `scp` or `rsync` to copy data and files between your local machine and your VM
+
 For Linux and Windows instructions check the [brev-cli install documentation](https://docs.nvidia.com/brev/latest/cli/getting-started#installation)
