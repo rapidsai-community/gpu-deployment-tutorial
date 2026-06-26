@@ -5,3 +5,6 @@ config:
 # Lint all Markdown files in the repository.
 globs:
   - "**/*.md"
+
+ignores:
+  - ".venv/**"
