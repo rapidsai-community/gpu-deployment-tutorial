@@ -10,3 +10,4 @@ globs:
 # top-level heading per slide, which the prose rules would otherwise flag.
 ignores:
   - "introduction/**"
+  - ".venv/**"
