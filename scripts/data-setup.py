@@ -1,7 +1,6 @@
-# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION.
-# SPDX-License-Identifier: Apache-2.0
-
 #!/usr/bin/env python3
+# SPDX-FileCopyrightText: Copyright (c) <year> NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
 
 import urllib.request
 import argparse
