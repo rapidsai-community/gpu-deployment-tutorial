@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 # Render the intro deck to PDF + PPTX using the bundled NVIDIA theme.
 # Requires Node (npx). Run from anywhere; it cd's into its own folder.
 set -euo pipefail
