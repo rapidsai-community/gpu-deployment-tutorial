@@ -137,7 +137,7 @@ UV_PROJECT_ENVIRONMENT=~/.venv uv sync
 ### JupyterLab nvdashboard extra step
 
 One of the packages we installed is the `jupyterlab-nvdahsboard` extension, for
-this extension to take effect, in Brev we need to restart teh jupyter service,
+this extension to take effect, in Brev we need to restart the jupyter service,
 in the terminal run:
 
 ```bash
