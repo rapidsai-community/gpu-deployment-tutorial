@@ -1,9 +1,9 @@
 name: tutorial-env
 channels:
   - rapidsai
+  - rapidsai-nightly
   - conda-forge
   - nvidia
-  - defaults
 dependencies:
   - python>=3.11
   - numpy
@@ -12,8 +12,8 @@ dependencies:
   - xarray
   - netcdf4
   - cupy>=14
-  - cudf=26.6
-  - cuml=26.6
+  - cudf=26.8
+  - cuml=26.8
   - cuda-python
   - cupy-xarray
   - cuda-core
