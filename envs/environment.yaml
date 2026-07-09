@@ -1,0 +1,21 @@
+name: tutorial-env
+channels:
+  - rapidsai
+  - conda-forge
+  - nvidia
+  - defaults
+dependencies:
+  - python>=3.11
+  - numpy
+  - pandas
+  - snakeviz
+  - xarray
+  - netcdf4
+  - cupy>=14
+  - cudf=26.6
+  - cuml=26.6
+  - cuda-python
+  - cupy-xarray
+  - cuda-core
+  - ipykernel
+  - rapids-cli>=0.2.0

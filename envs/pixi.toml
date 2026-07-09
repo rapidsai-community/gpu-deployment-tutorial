@@ -1,0 +1,20 @@
+[workspace]
+name = "tutorial-env"
+channels = ["rapidsai", "conda-forge", "nvidia"]
+platforms = ["linux-64"]
+
+[dependencies]
+python = ">=3.11"
+numpy = "*"
+pandas = "*"
+snakeviz = "*"
+xarray = "*"
+netcdf4 = "*"
+cupy = ">=14"
+cuda-python = "*"
+cupy-xarray = "*"
+cuda-core = "*"
+cudf = "26.6.*"
+cuml = "26.6.*"
+ipykernel = "*"
+rapids-cli = ">=0.2.0"
