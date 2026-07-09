@@ -116,22 +116,7 @@ python --version
 python -m pip --version
 ```
 
-Install the packages used in this section if they aren't already present.
-
-If you're using conda or pixi, prefer the tutorial's environment recipe over copying the pip commands below directly. The point is that the active environment can import the packages and see the GPU.
-
-<!-- TODO: add the equivalent conda and pixi commands here once the environment recipe is finalized. -->
-
-The following is the CUDA 13 pip path used while validating this guide on a Brev VM:
-
-```bash
-python -m pip install numpy pandas snakeviz cuda-python "cupy-cuda13x[ctk]" xarray netCDF4 cupy-xarray
-python -m pip install "cuda-core[cu13]"
-```
-
-`cuda-core[cu13]` provides the `cuda.core` import used below (plain `cuda-python` isn't enough). `xarray` and `netCDF4` let us open the climate dataset we'll use throughout, and `cupy-xarray` adds a `.cupy` accessor that moves an xarray object's data onto the GPU in place.
-
-Verify the imports:
+Verify that you have all the packages needed for this section:
 
 ```bash
 python - <<'PY'
@@ -160,28 +145,10 @@ We'll use [`cuda.core`](https://nvidia.github.io/cuda-python/cuda-core/latest/) 
 
 `cuda.core` answers: can this Python environment load the CUDA libraries it needs to talk to the driver?
 
-Create a file named `gpu_probe_cuda_core.py`:
+The `scripts/gpu-probe-cuda-core.py` script asks CUDA how many devices it can see, then prints each device's name, compute capability, and memory. Run it:
 
 ```bash
-cat > gpu_probe_cuda_core.py <<'PY'
-import cuda.core.system as system
-
-device_count = system.get_num_devices()
-print(f"device count: {device_count}")
-
-for index in range(device_count):
-    device = system.Device(index=index)
-    memory = device.memory_info
-    print(f"device {index}: {device.name}")
-    print(f"  compute capability: {device.cuda_compute_capability}")
-    print(f"  memory: {memory.total / 1024**3:.1f} GiB total, {memory.free / 1024**3:.1f} GiB free")
-PY
-```
-
-Run it:
-
-```bash
-python gpu_probe_cuda_core.py
+python scripts/gpu-probe-cuda-core.py
 ```
 
 If both `nvidia-smi` and this script succeed, the host and the active Python runtime both see the GPU. If `nvidia-smi` succeeds but this script fails, the host is fine but the Python environment is not. That's an environment issue, not a hardware issue, and it's worth catching now before we start using the GPU.
@@ -303,57 +270,16 @@ The on-disk file is compressed, so the in-memory array (about 58.6 MiB once xarr
 
 We start on the CPU. The script loads the temperature dataset, reshapes it to a time-by-space matrix, subtracts the time mean at each grid point to get anomalies, then runs an SVD to find the dominant spatial pattern. The SVD is the expensive step. This is the recipe for an Empirical Orthogonal Function (EOF) analysis, which is the principal component analysis applied to gridded climate data.
 
-Create a file named `xarray_cpu_baseline.py`:
+That analysis lives in `scripts/xarray-cpu-baseline.py`. Run it:
 
 ```bash
-cat > xarray_cpu_baseline.py <<'PY'
-# Simplified EOF analysis for benchmarking. The full version uses a
-# 1981 to 2010 climatology and latitude weighting. Here we use the
-# 2025 time-mean and skip the weighting so the script isolates the
-# SVD timing without the data-prep overhead.
-
-import time
-
-import numpy as np
-import xarray as xr
-
-ds = xr.open_dataset("air.sig995.2025.nc")
-
-t0 = time.perf_counter()
-
-air = ds["air"]
-T = air.to_numpy()
-ntime, nlat, nlon = T.shape
-
-# Build X = anomalies (time x space)
-X = T.reshape(ntime, nlat * nlon)
-X = X - X.mean(axis=0, keepdims=True)
-
-# EOF via SVD
-U, S, Vt = np.linalg.svd(X, full_matrices=False)
-
-eof1 = Vt[0, :].reshape(nlat, nlon)
-pc1 = U[:, 0] * S[0]
-var_frac1 = (S[0] ** 2) / np.sum(S**2)
-
-elapsed = time.perf_counter() - t0
-print(f"shape: {T.shape}")
-print(f"matrix: {X.shape}")
-print(f"cpu eof seconds: {elapsed:.3f}")
-print(f"first mode variance fraction: {float(var_frac1):.4f}")
-PY
-```
-
-Run it:
-
-```bash
-python xarray_cpu_baseline.py
+python scripts/xarray-cpu-baseline.py
 ```
 
 Then profile it to see where the time actually goes:
 
 ```bash
-python -m cProfile -o profile-xarray-cpu.prof xarray_cpu_baseline.py
+python -m cProfile -o profile-xarray-cpu.prof scripts/xarray-cpu-baseline.py
 python -m snakeviz -s profile-xarray-cpu.prof
 ```
 
@@ -363,7 +289,7 @@ SnakeViz starts a local web server (by default at `http://127.0.0.1:8080`). On a
 brev port-forward <your-instance-name> -p 8080:8080
 ```
 
-![SnakeViz view of xarray_cpu_baseline.py](images/snakeviz-xarray-cpu-baseline.png)
+![SnakeViz view of xarray-cpu-baseline.py](images/snakeviz-xarray-cpu-baseline.png)
 
 The largest block in the SnakeViz icicle chart should be the `svd` call (labeled `_linalg.py:...(svd)`), taking the large majority of the runtime. cProfile pools the time there. The reshape and mean-subtraction blocks are visibly smaller. If they weren't, a GPU port wouldn't have anything worth speeding up.
 
@@ -373,44 +299,7 @@ We now have a baseline number and a profile that says the SVD is the computation
 
 Here's a tempting mistake. We move the data to the GPU, do the preprocessing on the GPU, then move the matrix back to the CPU before the expensive SVD. This uses the GPU, but not for the operation that matters most.
 
-Create a file named `xarray_cupy_naive.py`:
-
-```bash
-cat > xarray_cupy_naive.py <<'PY'
-import time
-
-import cupy as cp
-import numpy as np
-import xarray as xr
-
-ds = xr.open_dataset("air.sig995.2025.nc")
-
-t0 = time.perf_counter()
-air = ds["air"]
-T = cp.asarray(air)
-ntime, nlat, nlon = T.shape
-
-# Build X = anomalies (time x space) on the GPU
-X = T.reshape(ntime, nlat * nlon)
-X = X - X.mean(axis=0, keepdims=True)
-
-# Bring back to NumPy for np.linalg.svd
-X = X.get()
-
-# EOF via SVD on CPU
-U, S, Vt = np.linalg.svd(X, full_matrices=False)
-
-eof1 = Vt[0, :].reshape(nlat, nlon)
-pc1 = U[:, 0] * S[0]
-var_frac1 = (S[0] ** 2) / np.sum(S**2)
-
-elapsed = time.perf_counter() - t0
-print(f"shape: {T.shape}")
-print(f"naive total seconds: {elapsed:.3f}")
-print(f"first mode variance fraction: {float(var_frac1):.4f}")
-print("bottleneck: the matrix returns to CPU before the expensive SVD")
-PY
-```
+The naive port lives in `scripts/xarray-cupy-naive.py`.
 
 Compared with the CPU baseline, this port moves the field onto the GPU for the reshape and mean-subtraction, then copies it back to the CPU before the SVD, so the expensive step still runs on the CPU:
 
@@ -427,7 +316,7 @@ Compared with the CPU baseline, this port moves the field onto the GPU for the r
  U, S, Vt = np.linalg.svd(X, full_matrices=False)
 ```
 
-> **Exercise:** before running it, predict the timing. This script does the data load, reshape, and mean-subtraction on the GPU, then runs the SVD. Will it beat the CPU baseline? Run it, then profile it the same way you profiled the baseline (`python -m cProfile -o profile-xarray-cupy-naive.prof xarray_cupy_naive.py`, then `python -m snakeviz profile-xarray-cupy-naive.prof`) and see which call still dominates the runtime.
+> **Exercise:** before running it, predict the timing. This script does the data load, reshape, and mean-subtraction on the GPU, then runs the SVD. Will it beat the CPU baseline? Run it, then profile it the same way you profiled the baseline (`python -m cProfile -o profile-xarray-cupy-naive.prof scripts/xarray-cupy-naive.py`, then `python -m snakeviz profile-xarray-cupy-naive.prof`) and see which call still dominates the runtime.
 
 The mistake lives in these two lines:
 
@@ -439,7 +328,7 @@ U, S, Vt = np.linalg.svd(X, full_matrices=False)
 We did the computationally inexpensive part on the GPU and the expensive part on the CPU. Run it, and watch the GPU while it runs. In one terminal:
 
 ```bash
-python xarray_cupy_naive.py
+python scripts/xarray-cupy-naive.py
 ```
 
 In a second terminal:
@@ -460,10 +349,10 @@ nsys profile \
   --cuda-memory-usage true \
   --force-overwrite true \
   --output profile-xarray-cupy-naive \
-  $(which python) xarray_cupy_naive.py
+  $(which python) scripts/xarray-cupy-naive.py
 ```
 
-![Nsight Systems timeline of xarray_cupy_naive.py](images/nsight-xarray-cupy-naive.png)
+![Nsight Systems timeline of xarray-cupy-naive.py](images/nsight-xarray-cupy-naive.png)
 
 These timelines are dense, so here's how to read them. Time runs left to right. The rows under `CUDA HW` show what the GPU actually did: the `Kernels` row is GPU compute, and the `Memory` row is the host-to-device and device-to-host copies. When those rows are empty, the GPU is idle. You produce the `.nsys-rep` on the VM, but exploring the timeline needs the Nsight Systems desktop app, so download the file to your laptop and open it there, or just follow the annotated screenshots in this section.
 
@@ -475,46 +364,7 @@ The GPU isn't absent here. It did some work. The problem is that the expensive o
 
 Now keep the SVD on the GPU too. The cleanest way is through `cupy-xarray`: its `.cupy` accessor moves the underlying data onto the GPU in place. Once `X` is a CuPy array, `np.linalg.svd` dispatches to CuPy's SVD through NumPy's `__array_function__` protocol, so the same line that ran on the CPU before now runs on the GPU.
 
-Create a file named `xarray_cupy_fixed.py`:
-
-```bash
-cat > xarray_cupy_fixed.py <<'PY'
-import time
-
-import cupy as cp
-import numpy as np
-import xarray as xr
-import cupy_xarray  # noqa: F401  # registers the .cupy accessor
-
-ds = xr.open_dataset("air.sig995.2025.nc")
-
-t0 = time.perf_counter()
-
-# .cupy.as_cupy() moves the xarray DataArray's underlying data to the GPU
-air = ds["air"].cupy.as_cupy()
-T = air.data
-ntime, nlat, nlon = T.shape
-
-# Build X = anomalies (time x space) on the GPU
-X = T.reshape(ntime, nlat * nlon)
-X = X - X.mean(axis=0, keepdims=True)
-
-# np.linalg.svd dispatches to CuPy via __array_function__ because X is a CuPy array
-U, S, Vt = np.linalg.svd(X, full_matrices=False)
-
-eof1 = Vt[0, :].reshape(nlat, nlon)
-pc1 = U[:, 0] * S[0]
-var_frac1 = (S[0] ** 2) / np.sum(S**2)
-
-cp.cuda.Stream.null.synchronize()
-elapsed = time.perf_counter() - t0
-
-print(f"shape: {T.shape}")
-print(f"fixed total seconds: {elapsed:.3f}")
-print(f"first mode variance fraction: {float(var_frac1):.4f}")
-print("fix: SVD stays on the GPU via __array_function__ dispatch to CuPy")
-PY
-```
+The fixed version lives in `scripts/xarray-cupy-fixed.py`.
 
 The change from the naive version is small but decisive: the `.get()` round-trip is gone, the data moves onto the GPU through the `.cupy` accessor, and the SVD now runs on the GPU:
 
@@ -537,7 +387,7 @@ The change from the naive version is small but decisive: the `.get()` round-trip
 Run it, then capture a timeline:
 
 ```bash
-python xarray_cupy_fixed.py
+python scripts/xarray-cupy-fixed.py
 ```
 
 ```bash
@@ -546,18 +396,18 @@ nsys profile \
   --cuda-memory-usage true \
   --force-overwrite true \
   --output profile-xarray-cupy-fixed \
-  $(which python) xarray_cupy_fixed.py
+  $(which python) scripts/xarray-cupy-fixed.py
 ```
 
-![Nsight Systems timeline of xarray_cupy_fixed.py](images/nsight-xarray-cupy-fixed.png)
+![Nsight Systems timeline of xarray-cupy-fixed.py](images/nsight-xarray-cupy-fixed.png)
 
 Compared with the naive version, the timeline shows no host-to-device or device-to-host memcpy in the middle of the run, and the long idle stretch is gone. The `Kernels` row stays busy straight through the SVD. That's the win.
 
 Run the two versions back to back to compare:
 
 ```bash
-python xarray_cupy_naive.py
-python xarray_cupy_fixed.py
+python scripts/xarray-cupy-naive.py
+python scripts/xarray-cupy-fixed.py
 ```
 
 The CPU baseline and the naive GPU version should land close to each other, because both are bound by the CPU SVD. The fixed version should be several times faster than either. On the L4 we tested this on, that was roughly 5.0s for the CPU baseline, 5.5s for the naive version, and 1.6s for the fixed one, about a 3x speedup. The exact numbers depend on your GPU, so focus on the relationship rather than the seconds. One more check: the `first mode variance fraction` should match across all three scripts. That's how you confirm the GPU produced the same answer, not just a faster wrong one.
@@ -568,52 +418,11 @@ The fixed version still pays one transfer onto the GPU, but it doesn't bring the
 
 We fixed the expensive mathematical computation. But a fast SVD doesn't guarantee a fast program. GPU pipelines usually have a second front: the Python preprocessing that feeds the analysis. A common real step before an EOF analysis is computing per-grid-cell statistics. Here's the natural, and slow, way to write it.
 
-Create a file named `preprocess_cpu_loop.py`:
+That non-optimal version lives in `scripts/preprocess-cpu-loop.py`. Run it and profile it:
 
 ```bash
-cat > preprocess_cpu_loop.py <<'PY'
-import time
-
-import numpy as np
-import xarray as xr
-
-
-ds = xr.open_dataset("air.sig995.2025.nc")
-T = ds["air"].to_numpy()  # shape (ntime, nlat, nlon)
-ntime, nlat, nlon = T.shape
-T_flat = T.reshape(ntime, nlat * nlon)  # (ntime, ncells)
-
-
-def build_features_bad(matrix):
-    ncells = matrix.shape[1]
-    features = []
-    for cell in range(ncells):
-        column = matrix[:, cell]
-        features.append((
-            column.mean(),
-            column.std(),
-            column.max() - column.min(),
-            column.var(),
-        ))
-    return np.asarray(features, dtype=np.float64)
-
-
-start = time.perf_counter()
-features = build_features_bad(T_flat)
-preprocess_seconds = time.perf_counter() - start
-
-print(f"grid cells: {T_flat.shape[1]:,}")
-print(f"timesteps: {T_flat.shape[0]:,}")
-print(f"python preprocessing: {preprocess_seconds:.3f} seconds")
-print("bottleneck: per-cell Python loop preprocessing dominates")
-PY
-```
-
-Run it and profile it:
-
-```bash
-python preprocess_cpu_loop.py
-python -m cProfile -o profile-cpu-preprocessing-bad.prof preprocess_cpu_loop.py
+python scripts/preprocess-cpu-loop.py
+python -m cProfile -o profile-cpu-preprocessing-bad.prof scripts/preprocess-cpu-loop.py
 python -m snakeviz -s profile-cpu-preprocessing-bad.prof
 ```
 
@@ -623,46 +432,7 @@ This is where `cProfile` and SnakeViz shine, and `nsys` wouldn't help: there's n
 
 The tempting fix is to reach for the GPU. But if you keep the per-cell Python loop and just move each cell's work onto the GPU, you make things worse, not better.
 
-Create a file named `preprocess_gpu_loop.py`:
-
-```bash
-cat > preprocess_gpu_loop.py <<'PY'
-import time
-
-import cupy as cp
-import xarray as xr
-import cupy_xarray  # noqa: F401  # registers the .cupy accessor
-
-
-ds = xr.open_dataset("air.sig995.2025.nc")
-T = ds["air"].cupy.as_cupy().data  # move the whole field to the GPU once
-ntime, nlat, nlon = T.shape
-T_flat = T.reshape(ntime, nlat * nlon)
-
-
-def build_features_gpu_loop(matrix):
-    ncells = matrix.shape[1]
-    features = cp.empty((ncells, 4), dtype=cp.float64)
-    for cell in range(ncells):
-        column = matrix[:, cell]
-        features[cell, 0] = column.mean()
-        features[cell, 1] = column.std()
-        features[cell, 2] = column.max() - column.min()
-        features[cell, 3] = column.var()
-    cp.cuda.Stream.null.synchronize()
-    return features
-
-
-start = time.perf_counter()
-features = build_features_gpu_loop(T_flat)
-elapsed = time.perf_counter() - start
-
-print(f"grid cells: {T_flat.shape[1]:,}")
-print(f"timesteps: {T_flat.shape[0]:,}")
-print(f"per-cell GPU loop: {elapsed:.3f} seconds")
-print("bottleneck: one tiny GPU launch per cell, thousands of times")
-PY
-```
+The GPU version lives in `scripts/preprocess-gpu-loop.py`.
 
 It's the same per-cell loop as the CPU version, just moved onto the GPU, which is the trap: one tiny kernel launch per cell, thousands of times:
 
@@ -682,12 +452,14 @@ It's the same per-cell loop as the CPU version, just moved onto the GPU, which i
 +    features = cp.empty((ncells, 4), dtype=cp.float64)
      for cell in range(ncells):
          column = matrix[:, cell]
--        features.append((
--            column.mean(),
--            column.std(),
--            column.max() - column.min(),
--            column.var(),
--        ))
+-        features.append(
+-            (
+-                column.mean(),
+-                column.std(),
+-                column.max() - column.min(),
+-                column.var(),
+-            )
+-        )
 -    return np.asarray(features, dtype=np.float64)
 +        features[cell, 0] = column.mean()
 +        features[cell, 1] = column.std()
@@ -700,7 +472,7 @@ It's the same per-cell loop as the CPU version, just moved onto the GPU, which i
 Run it once for a clean timing number, then capture a timeline (the `nsys` run below executes the script again, this time under the profiler):
 
 ```bash
-python preprocess_gpu_loop.py
+python scripts/preprocess-gpu-loop.py
 ```
 
 ```bash
@@ -709,7 +481,7 @@ nsys profile \
   --cuda-memory-usage true \
   --force-overwrite true \
   --output profile-preprocess-gpu-loop \
-  $(which python) preprocess_gpu_loop.py
+  $(which python) scripts/preprocess-gpu-loop.py
 ```
 
 ![Nsight Systems timeline of the per-cell GPU loop](images/nsight-preprocess-gpu-loop.png)
@@ -718,40 +490,7 @@ One viewing note for this run: at full zoom it looks like a single solid bar, be
 
 The real fix is to stop looping and let one call process all the cells at once utilizing the strengths of a GPU.
 
-Create a file named `preprocess_vectorized.py`:
-
-```bash
-cat > preprocess_vectorized.py <<'PY'
-import time
-
-import numpy as np
-import xarray as xr
-
-
-ds = xr.open_dataset("air.sig995.2025.nc")
-T = ds["air"].to_numpy()
-ntime, nlat, nlon = T.shape
-T_flat = T.reshape(ntime, nlat * nlon)
-
-
-def build_features_fixed(matrix):
-    means = matrix.mean(axis=0)
-    stds = matrix.std(axis=0)
-    ranges = matrix.max(axis=0) - matrix.min(axis=0)
-    variances = matrix.var(axis=0)
-    return np.column_stack((means, stds, ranges, variances))
-
-
-start = time.perf_counter()
-features = build_features_fixed(T_flat)
-preprocess_seconds = time.perf_counter() - start
-
-print(f"grid cells: {T_flat.shape[1]:,}")
-print(f"timesteps: {T_flat.shape[0]:,}")
-print(f"vectorized preprocessing: {preprocess_seconds:.3f} seconds")
-print("fix: vectorized per-cell stats replace the Python loop")
-PY
-```
+The vectorized version lives in `scripts/preprocess-vectorized.py`.
 
 The real fix stays on the CPU but replaces the entire per-cell loop with four vectorized calls that run across all cells at once:
 
@@ -761,12 +500,14 @@ The real fix stays on the CPU but replaces the entire per-cell loop with four ve
 -    features = []
 -    for cell in range(ncells):
 -        column = matrix[:, cell]
--        features.append((
--            column.mean(),
--            column.std(),
--            column.max() - column.min(),
--            column.var(),
--        ))
+-        features.append(
+-            (
+-                column.mean(),
+-                column.std(),
+-                column.max() - column.min(),
+-                column.var(),
+-            )
+-        )
 -    return np.asarray(features, dtype=np.float64)
 +def build_features_fixed(matrix):
 +    means = matrix.mean(axis=0)
@@ -779,9 +520,9 @@ The real fix stays on the CPU but replaces the entire per-cell loop with four ve
 Run it and compare against the two slow versions:
 
 ```bash
-python preprocess_cpu_loop.py
-python preprocess_gpu_loop.py
-python preprocess_vectorized.py
+python scripts/preprocess-cpu-loop.py
+python scripts/preprocess-gpu-loop.py
+python scripts/preprocess-vectorized.py
 ```
 
 The vectorized version replaces thousands of per-cell calls with four calls that run across all cells at once. It should be far faster than both the CPU loop and the GPU loop. On the L4 we tested this on, the CPU loop ran about 0.7s, the per-cell GPU loop about 5s (slower, because of the launch overhead), and the vectorized version about 0.1s. Two lessons come out of this:
