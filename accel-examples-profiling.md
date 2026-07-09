@@ -396,23 +396,15 @@ command.
 If you work on Jupyter notebooks, the JupyterLab NVDashboard extension is a great
 tool to watch some GPU metrics like memory and utilization.
 
-As of `jupyterlab-nvdashboard >= 0.14`, the extension includes a **GPU Accelerators**
+As of `jupyterlab-nvdashboard >= 0.15`, the extension includes a **GPU Accelerators**
 panel with a GPU accelerator activator button that lets you enable GPU-backed execution
 with zero code changes. When active, your existing pandas code runs on the GPU (via
 cudf-pandas), and/or your scikit-learn, UMAP, and HDBSCAN code runs on the GPU (via
 cuml-accel). Accelerators are shown only when the corresponding dependencies are
 installed.
 
-Install the dashboard into the Python environment used by the Brev Jupyter
-server.
-
-Note: if you are following this tutorial in order, this part should have been
-taken care of as part of the environments setup.
-
-```bash
-python -m pip install jupyterlab_nvdashboard
-sudo systemctl restart jupyter
-```
+> [!NOTE] if you are following this tutorial in order, this part should have been
+> taken care of as part of the environments setup.
 
 ### Example
 

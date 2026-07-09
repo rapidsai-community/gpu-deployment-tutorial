@@ -203,7 +203,6 @@ We'll create the environment from the `environment.yaml` file in `envs/`. Take a
 ```bash
 conda env create -f envs/environment.yaml
 conda activate tutorial-env
-python -m ipykernel install --user --name tutorial-env --display-name "Scipy GPU deployment tutorial env"
 ```
 
 Then we can import `cudf` and allocate some GPU memory
@@ -222,10 +221,16 @@ This extension must be installed separately from the conda environment. JupyterL
 
 On Brev, the JupyterLab server runs from `/home/ubuntu/.venv/`, the system `uv` environment. From a terminal inside JupyterLab, first deactivate your conda environment so the system `uv` is used, then install and restart:
 
+> [!NOTE]
+> Due to this constrain, the nvdashboard accelerator toggle can't see the libraries installed in the conda or pixi
+> environments. We will install `cudf` along with nvdashboard, for demonstration purposes.
+
 ```bash
-conda deactivate
+conda deactivate  #make sure base is also deactivated
 echo $VIRTUAL_ENV  # should show /home/ubuntu/.venv
+source .venv/bin/activate
 uv pip install jupyterlab-nvdashboard
+uv pip install --extra-index-url=https://pypi.anaconda.org/rapidsai-wheels-nightly/simple "cudf-cu13>=26.8.0a0,<=26.8" "dask-cuda>=26.8.0a0,<=26.8" --prerelease=allow --index-strategy unsafe-best-match
 sudo systemctl restart jupyter.service
 ```
 
@@ -252,16 +257,6 @@ pixi install
 ```
 
 Pixi creates its environment under `.pixi/envs/` inside the project directory and generates a `pixi.lock` file that pins every dependency exactly.
-
-#### Registering the Kernel in JupyterLab
-
-Since pixi manages its own isolated environment, you need to register it as a Jupyter kernel so it is available in JupyterLab:
-
-```bash
-pixi run python -m ipykernel install --user --name tutorial-env --display-name "Scipy GPU deployment tutorial env"
-```
-
-Then select the `Scipy GPU deployment tutorial env` kernel when opening a notebook.
 
 #### NV Dashboard Extension on Brev with Pixi
 

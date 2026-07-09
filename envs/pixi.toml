@@ -1,6 +1,6 @@
 [workspace]
 name = "tutorial-env"
-channels = ["rapidsai", "rapidsai-nightly", "conda-forge", "nvidia"]
+channels = ["rapidsai-nightly", "rapidsai", "conda-forge", "nvidia"]
 platforms = ["linux-64"]
 
 [dependencies]
