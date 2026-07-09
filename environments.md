@@ -109,7 +109,7 @@ dependencies that we will be using along this tutorial.
 Check to see if there is an existing `.venv` in Brev:
 
 ```bash
-$test -d .venv && echo ".venv exists" || echo "no .venv"
+test -d .venv && echo ".venv exists" || echo "no .venv"
 .venv exists
 ```
 
