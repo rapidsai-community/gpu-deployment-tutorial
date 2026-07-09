@@ -29,8 +29,11 @@ A few of the pieces it inspects, explained:
 
 One command runs a battery of health checks and tells you whether the driver, CUDA toolkit, GPU, memory, and (on multi-GPU boxes) NVLink are consistent with each other.
 
-```console
-$ rapids doctor
+```bash
+rapids doctor
+```
+
+```txt
 🧑‍⚕️ Performing REQUIRED health check for RAPIDS
 Running checks
 All checks passed!
