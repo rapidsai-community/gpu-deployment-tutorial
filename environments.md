@@ -24,7 +24,7 @@ setups:
 - `pixi`
 
 This tutorial will show a path on how to use each of the package managers. That
-being said, choose one and follow teh instructions just for that path, do not mix
+being said, choose one and follow the instructions just for that path, do not mix
 and match since this will create conflicts.
 
 **NOTE:** In the live version, we will ask for a a show of hands to choose one.  
