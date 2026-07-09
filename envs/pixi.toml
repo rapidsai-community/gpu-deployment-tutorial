@@ -1,4 +1,4 @@
-[project]
+[workspace]
 name = "tutorial-env"
 channels = ["rapidsai", "conda-forge", "nvidia"]
 platforms = ["linux-64"]
