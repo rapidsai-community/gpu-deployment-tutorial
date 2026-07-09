@@ -247,7 +247,7 @@ Even with `synchronize()`, treat these timings as good estimates, not production
 
 The CPU and GPU have separate memory. A NumPy array lives in host memory. A CuPy array lives in device memory. Moving data from host to device is a CPU-to-GPU transfer, and moving it back is a GPU-to-CPU transfer.
 
-<!-- TODO(image): add a host/device memory diagram here — separate system RAM vs VRAM joined by a narrow PCIe link, with labeled H2D (cp.asarray) and D2H (.get()) arrows — to show why transfers cost. Pull a suitable diagram from the CUDA repo. Tracking issue: TBD. -->
+<!-- TODO(image): add a host/device memory diagram here, separate system RAM vs VRAM joined by a narrow PCIe link, with labeled H2D (cp.asarray) and D2H (.get()) arrows, to show why transfers cost. Pull a suitable diagram from the CUDA repo. Tracking issue: TBD. -->
 
 Those transfers aren't free. For a small workload, the transfer overhead can outweigh the benefit of GPU computation. For a larger workflow, repeated transfers can erase an otherwise good speedup. This is why just using the GPU isn't enough. The useful question is whether enough of the expensive work stayed on the GPU long enough to justify the transfer.
 
@@ -412,6 +412,21 @@ print("bottleneck: the matrix returns to CPU before the expensive SVD")
 PY
 ```
 
+Compared with the CPU baseline, this port moves the field onto the GPU for the reshape and mean-subtraction, then copies it back to the CPU before the SVD, so the expensive step still runs on the CPU:
+
+```diff
++import cupy as cp
+ import numpy as np
+ import xarray as xr
+
+-T = air.to_numpy()
++T = cp.asarray(air)
+
+ X = X - X.mean(axis=0, keepdims=True)
++X = X.get()
+ U, S, Vt = np.linalg.svd(X, full_matrices=False)
+```
+
 > **Exercise:** before running it, predict the timing. This script does the data load, reshape, and mean-subtraction on the GPU, then runs the SVD. Will it beat the CPU baseline? Run it, then profile it the same way you profiled the baseline (`python -m cProfile -o profile-xarray-cupy-naive.prof xarray_cupy_naive.py`, then `python -m snakeviz profile-xarray-cupy-naive.prof`) and see which call still dominates the runtime.
 
 The mistake lives in these two lines:
@@ -499,6 +514,24 @@ print(f"fixed total seconds: {elapsed:.3f}")
 print(f"first mode variance fraction: {float(var_frac1):.4f}")
 print("fix: SVD stays on the GPU via __array_function__ dispatch to CuPy")
 PY
+```
+
+The change from the naive version is small but decisive: the `.get()` round-trip is gone, the data moves onto the GPU through the `.cupy` accessor, and the SVD now runs on the GPU:
+
+```diff
+ import xarray as xr
++import cupy_xarray
+
+-air = ds["air"]
+-T = cp.asarray(air)
++air = ds["air"].cupy.as_cupy()
++T = air.data
+
+-X = X.get()
+ U, S, Vt = np.linalg.svd(X, full_matrices=False)
+
++cp.cuda.Stream.null.synchronize()
+ elapsed = time.perf_counter() - t0
 ```
 
 Run it, then capture a timeline:
@@ -631,6 +664,39 @@ print("bottleneck: one tiny GPU launch per cell, thousands of times")
 PY
 ```
 
+It's the same per-cell loop as the CPU version, just moved onto the GPU, which is the trap: one tiny kernel launch per cell, thousands of times:
+
+```diff
+-import numpy as np
++import cupy as cp
+ import xarray as xr
++import cupy_xarray
+
+-T = ds["air"].to_numpy()
++T = ds["air"].cupy.as_cupy().data
+
+-def build_features_bad(matrix):
++def build_features_gpu_loop(matrix):
+     ncells = matrix.shape[1]
+-    features = []
++    features = cp.empty((ncells, 4), dtype=cp.float64)
+     for cell in range(ncells):
+         column = matrix[:, cell]
+-        features.append((
+-            column.mean(),
+-            column.std(),
+-            column.max() - column.min(),
+-            column.var(),
+-        ))
+-    return np.asarray(features, dtype=np.float64)
++        features[cell, 0] = column.mean()
++        features[cell, 1] = column.std()
++        features[cell, 2] = column.max() - column.min()
++        features[cell, 3] = column.var()
++    cp.cuda.Stream.null.synchronize()
++    return features
+```
+
 Run it once for a clean timing number, then capture a timeline (the `nsys` run below executes the script again, this time under the profiler):
 
 ```bash
@@ -685,6 +751,29 @@ print(f"timesteps: {T_flat.shape[0]:,}")
 print(f"vectorized preprocessing: {preprocess_seconds:.3f} seconds")
 print("fix: vectorized per-cell stats replace the Python loop")
 PY
+```
+
+The real fix stays on the CPU but replaces the entire per-cell loop with four vectorized calls that run across all cells at once:
+
+```diff
+-def build_features_bad(matrix):
+-    ncells = matrix.shape[1]
+-    features = []
+-    for cell in range(ncells):
+-        column = matrix[:, cell]
+-        features.append((
+-            column.mean(),
+-            column.std(),
+-            column.max() - column.min(),
+-            column.var(),
+-        ))
+-    return np.asarray(features, dtype=np.float64)
++def build_features_fixed(matrix):
++    means = matrix.mean(axis=0)
++    stds = matrix.std(axis=0)
++    ranges = matrix.max(axis=0) - matrix.min(axis=0)
++    variances = matrix.var(axis=0)
++    return np.column_stack((means, stds, ranges, variances))
 ```
 
 Run it and compare against the two slow versions:
