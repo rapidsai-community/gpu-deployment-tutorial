@@ -92,6 +92,129 @@ TODO: add output pending <https://github.com/rapidsai/cudf/issues/23010>
 python -m cudf.pandas --line-profile scripts/pandas-workflow.py
 ```
 
+```txt
+                                                       Total time elapsed: 7.706 seconds  
+
+                                                                     Stats  
+
+┏━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━━━━━┓
+┃ Line no. ┃ Line                                                                                         ┃ GPU TIME(s) ┃ CPU TIME(s) ┃
+┡━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━━━━━━┩
+│ 7        │     import pandas as pd                                                                      │             │             │
+│          │                                                                                              │             │             │
+│ 9        │     import time                                                                              │             │             │
+│          │                                                                                              │             │             │
+│ 11       │     from pathlib import Path                                                                 │             │             │
+│          │                                                                                              │             │             │
+│ 15       │     DATA_PATH = (                                                                            │             │             │
+│          │                                                                                              │             │             │
+│ 17       │         Path(__file__).resolve().parent.parent                                               │             │             │
+│          │                                                                                              │             │             │
+│ 19       │         / "data"                                                                             │             │             │
+│          │                                                                                              │             │             │
+│ 21       │         / "nyc_parking_violations_2022.parquet"                                              │             │             │
+│          │                                                                                              │             │             │
+│ 27       │     df = pd.read_parquet(                                                                    │ 0.647402489 │             │
+│          │                                                                                              │             │             │
+│ 29       │         DATA_PATH,                                                                           │             │             │
+│          │                                                                                              │             │             │
+│ 31       │         columns=[                                                                            │             │             │
+│          │                                                                                              │             │             │
+│ 61       │     start = time.time()                                                                      │             │             │
+│          │                                                                                              │             │             │
+│ 63       │     result_1 = (                                                                             │             │             │
+│          │                                                                                              │             │             │
+│ 65       │         df[["Registration State", "Violation Description"]]  # get only these two columns    │ 0.004249302 │             │
+│          │                                                                                              │             │             │
+│ 67       │         .value_counts()  # get the count of violations per state and per type of offence     │ 0.252751642 │             │
+│          │                                                                                              │             │             │
+│ 69       │         .groupby("Registration State")  # group by state                                     │ 0.001761635 │             │
+│          │                                                                                              │             │             │
+│ 71       │         .head(                                                                               │ 0.096446182 │             │
+│          │                                                                                              │             │             │
+│ 73       │             1                                                                                │             │             │
+│          │                                                                                              │             │             │
+│ 77       │         .sort_index()  # sort by state name                                                  │ 0.007803980 │             │
+│          │                                                                                              │             │             │
+│ 79       │         .reset_index()                                                                       │ 0.000772965 │             │
+│          │                                                                                              │             │             │
+│ 83       │     end = time.time()                                                                        │             │             │
+│          │                                                                                              │             │             │
+│ 85       │     print(f"Operation 1 (value_counts + groupby + head): {end - start:.4f} seconds")         │             │             │
+│          │                                                                                              │             │             │
+│ 91       │     start = time.time()                                                                      │             │             │
+│          │                                                                                              │             │             │
+│ 93       │     result_2 = (                                                                             │             │             │
+│          │                                                                                              │             │             │
+│ 95       │         df.groupby(["Vehicle Body Type"])                                                    │ 0.026168063 │             │
+│          │                                                                                              │             │             │
+│ 97       │         .agg({"Summons Number": "count"})                                                    │ 0.023348062 │             │
+│          │                                                                                              │             │             │
+│ 99       │         .rename(columns={"Summons Number": "Count"})                                         │ 0.001769455 │             │
+│          │                                                                                              │             │             │
+│ 101      │         .sort_values(["Count"], ascending=False)                                             │ 0.006647119 │             │
+│          │                                                                                              │             │             │
+│ 105      │     end = time.time()                                                                        │             │             │
+│          │                                                                                              │             │             │
+│ 107      │     print(f"Operation 2 (groupby + agg + sort): {end - start:.4f} seconds")                  │             │             │
+│          │                                                                                              │             │             │
+│ 113      │     weekday_names = {                                                                        │             │             │
+│          │                                                                                              │             │             │
+│ 115      │         0: "Monday",                                                                         │             │             │
+│          │                                                                                              │             │             │
+│ 117      │         1: "Tuesday",                                                                        │             │             │
+│          │                                                                                              │             │             │
+│ 119      │         2: "Wednesday",                                                                      │             │             │
+│          │                                                                                              │             │             │
+│ 121      │         3: "Thursday",                                                                       │             │             │
+│          │                                                                                              │             │             │
+│ 123      │         4: "Friday",                                                                         │             │             │
+│          │                                                                                              │             │             │
+│ 125      │         5: "Saturday",                                                                       │             │             │
+│          │                                                                                              │             │             │
+│ 127      │         6: "Sunday",                                                                         │             │             │
+│          │                                                                                              │             │             │
+│ 133      │     start = time.time()                                                                      │             │             │
+│          │                                                                                              │             │             │
+│ 135      │     df["Issue Date"] = df["Issue Date"].astype("datetime64[ms]")                             │ 0.111983887 │             │
+│          │                                                                                              │             │             │
+│ 137      │     df["issue_weekday"] = df["Issue Date"].dt.weekday.map(weekday_names)                     │ 0.163566145 │             │
+│          │                                                                                              │             │             │
+│ 139      │     result_3 = (                                                                             │             │             │
+│          │                                                                                              │             │             │
+│ 141      │         df.groupby(["issue_weekday"])["Summons Number"].count().sort_values(ascending=False) │ 0.069382555 │             │
+│          │                                                                                              │             │             │
+│ 145      │     end = time.time()                                                                        │             │             │
+│          │                                                                                              │             │             │
+│ 147      │     print(f"Operation 3 (weekday violation counts): {end - start:.4f} seconds")              │             │             │
+│          │                                                                                              │             │             │
+│ 153      │     start = time.time()                                                                      │             │             │
+│          │                                                                                              │             │             │
+│ 155      │     result_5 = df.groupby("Violation County").size().sort_values(ascending=False).head(10)   │ 0.062248875 │             │
+│          │                                                                                              │             │             │
+│ 157      │     end = time.time()                                                                        │             │             │
+│          │                                                                                              │             │             │
+│ 159      │     print(f"Operation 5 (groupby county + size + head): {end - start:.4f} seconds")          │             │             │
+│          │                                                                                              │             │             │
+│ 165      │     start = time.time()                                                                      │             │             │
+│          │                                                                                              │             │             │
+│ 167      │     df.count(axis=0)                                                                         │ 0.006332094 │             │
+│          │                                                                                              │             │             │
+│ 169      │     end = time.time()                                                                        │             │             │
+│          │                                                                                              │             │             │
+│ 171      │     print(f"Operation 6 (df.count axis=0): {end - start:.4f} seconds")                       │             │             │
+│          │                                                                                              │             │             │
+│ 175      │     start = time.time()                                                                      │             │             │
+│          │                                                                                              │             │             │
+│ 177      │     df.count(axis=1)                                                                         │ 0.065721525 │             │
+│          │                                                                                              │             │             │
+│ 179      │     end = time.time()                                                                        │             │             │
+│          │                                                                                              │             │             │
+│ 181      │     print(f"Operation 7 (df.count axis=1): {end - start:.4f} seconds")                       │             │             │
+│          │                                                                                              │             │             │
+└──────────┴──────────────────────────────────────────────────────────────────────────────────────────────┴─────────────┴─────────────┘
+```
+
 and if we use `--profile`, it generates a report showing which operations used
 the GPU and which used the CPU.
 
@@ -273,23 +396,15 @@ command.
 If you work on Jupyter notebooks, the JupyterLab NVDashboard extension is a great
 tool to watch some GPU metrics like memory and utilization.
 
-As of `jupyterlab-nvdashboard >= 0.14`, the extension includes a **GPU Accelerators**
+As of `jupyterlab-nvdashboard >= 0.15`, the extension includes a **GPU Accelerators**
 panel with a GPU accelerator activator button that lets you enable GPU-backed execution
 with zero code changes. When active, your existing pandas code runs on the GPU (via
 cudf-pandas), and/or your scikit-learn, UMAP, and HDBSCAN code runs on the GPU (via
 cuml-accel). Accelerators are shown only when the corresponding dependencies are
 installed.
 
-Install the dashboard into the Python environment used by the Brev Jupyter
-server.
-
-Note: if you are following this tutorial in order, this part should have been
-taken care of as part of the environments setup.
-
-```bash
-python -m pip install jupyterlab_nvdashboard
-sudo systemctl restart jupyter
-```
+> [!NOTE] if you are following this tutorial in order, this part should have been
+> taken care of as part of the environments setup.
 
 ### Example
 
