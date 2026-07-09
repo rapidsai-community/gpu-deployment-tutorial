@@ -22,17 +22,8 @@ A few of the pieces it inspects, explained:
 - **[Compute capability](https://developer.nvidia.com/cuda-gpus):** A GPU's hardware feature level; RAPIDS requires 7.0 or higher.
 - **[NVLink](https://www.nvidia.com/en-us/data-center/nvlink/):** The high-speed interconnect between GPUs on multi-GPU machines.
 
-Install the RAPIDS CLI into the same environment as your RAPIDS packages (the one you set up earlier), so it reports on the environment you are actually using. With uv:
-
-```bash
-uv pip install rapids-cli
-```
-
-Or with conda:
-
-```bash
-conda install rapidsai::rapids-cli
-```
+> [!NOTE] If you are following this tutorial in order, at this point you should have an environment built that
+> contains rapids-cli.
 
 ## `rapids doctor`: is my environment healthy?
 
@@ -57,8 +48,11 @@ A failed check doesn't just say "failed." It prints an actionable message tellin
 
 Some checks raise a non-fatal warning instead of failing. The memory-ratio check is a good example: it flags a less-than-ideal setup but still lets the overall run pass.
 
-```console
-$ rapids doctor
+```bash
+rapids doctor
+```
+
+```txt
 🧑‍⚕️ Performing REQUIRED health check for RAPIDS
 Running checks
 Warning: System Memory to total GPU Memory ratio not at least 2:1 ratio. It is recommended to have double the system memory to GPU memory for optimal performance.
@@ -67,8 +61,11 @@ All checks passed!
 
 Add `--verbose` to see what `doctor` discovered and the value behind each check:
 
-```console
-$ rapids doctor --verbose
+```bash
+rapids doctor --verbose
+```
+
+```txt
 🧑‍⚕️ Performing REQUIRED health check for RAPIDS
 Discovering checks
 Found check 'cuda' provided by 'rapids_cli.doctor.checks.cuda_driver:cuda_check'
@@ -93,8 +90,11 @@ RAPIDS libraries register their own checks through the same `rapids_doctor_check
 
 With cuML installed, for example, its four checks are discovered alongside the built-ins:
 
-```console
-$ rapids doctor --verbose
+```bash
+rapids doctor --verbose
+```
+
+```txt
 🧑‍⚕️ Performing REQUIRED health check for RAPIDS
 Discovering checks
 ...
@@ -119,8 +119,11 @@ cuGraph ships a `cugraph_smoke_check` the same way. The more such libraries you 
 
 Where `doctor` gives a verdict, `debug` gives the full picture of the machine: a report you can read or share.
 
-```console
-$ rapids debug
+```bash
+rapids debug
+```
+
+```txt
 RAPIDS Debug Information
 ...
 Driver Version
@@ -166,8 +169,11 @@ It prints a lot, including the full `nvidia-smi` table, your OS details, and eve
 
 Trimmed to the same fields, `rapids debug --json` gives you a machine-readable version:
 
-```console
-$ rapids debug --json
+```bash
+rapids debug --json
+```
+
+```json
 {
     "driver_version": "580.159.03",
     "cuda_version": "13.0",
