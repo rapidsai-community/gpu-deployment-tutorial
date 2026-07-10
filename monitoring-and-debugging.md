@@ -108,12 +108,19 @@ If `nsys` isn't found, refuses to run, or warns that sampling is restricted, see
 
 The rest of this section works through an xarray + CuPy example on real climate data, so the environment needs those libraries (xarray, netCDF4, CuPy, and cupy-xarray) in addition to the profilers.
 
-Use the Python environment you created earlier in the tutorial. The exact package manager doesn't matter. What matters is that `python` points to the environment you need.
+Use the Python environment you created earlier in the tutorial. The exact package manager doesn't matter. What matters is that `python` points to the environment you need. Activate it first. On Brev, the uv path installed into the system venv at `~/.venv`:
+
+```bash
+source ~/.venv/bin/activate
+```
+
+(If you used conda, run `conda activate tutorial-env` instead; if pixi, run the section's commands through `pixi run` from `envs/`, or open a `pixi shell`.)
+
+Then confirm `python` points where you expect:
 
 ```bash
 which python
 python --version
-python -m pip --version
 ```
 
 Verify that you have all the packages needed for this section:
@@ -316,7 +323,7 @@ Compared with the CPU baseline, this port moves the field onto the GPU for the r
  U, S, Vt = np.linalg.svd(X, full_matrices=False)
 ```
 
-> **Exercise:** before running it, predict the timing. This script does the data load, reshape, and mean-subtraction on the GPU, then runs the SVD. Will it beat the CPU baseline? Run it, then profile it the same way you profiled the baseline (`python -m cProfile -o profile-xarray-cupy-naive.prof scripts/xarray-cupy-naive.py`, then `python -m snakeviz profile-xarray-cupy-naive.prof`) and see which call still dominates the runtime.
+> **Exercise:** before running it, predict the timing. This script does the data load, reshape, and mean-subtraction on the GPU, then runs the SVD. Will it beat the CPU baseline? Run it, then profile it the same way you profiled the baseline (`python -m cProfile -o profile-xarray-cupy-naive.prof scripts/xarray-cupy-naive.py`, then `python -m snakeviz -s profile-xarray-cupy-naive.prof`) and see which call still dominates the runtime.
 
 The mistake lives in these two lines:
 
@@ -345,16 +352,37 @@ This is the moment `nvtop` is the right tool. You'll see the GPU light up briefl
 
 ```bash
 nsys profile \
-  --trace cuda,osrt,nvtx \
+  --trace cuda,osrt \
   --cuda-memory-usage true \
   --force-overwrite true \
   --output profile-xarray-cupy-naive \
   $(which python) scripts/xarray-cupy-naive.py
 ```
 
+At the end of the run, `nsys` prints where it wrote the report. On Brev that's your home directory:
+
+```text
+Generated:
+    /home/ubuntu/profile-xarray-cupy-naive.nsys-rep
+```
+
+Capturing happens on the VM, but exploring the timeline needs the **Nsight Systems desktop app**, which runs on your laptop, not the VM. So you pull the report down and open it locally.
+
+Install the Nsight Systems GUI on your laptop once, from the [Nsight Systems page](https://developer.nvidia.com/nsight-systems). This desktop application is separate from the `nsys` command-line tool you installed on the VM.
+
+Then copy the report down from Brev. Run this from a new terminal on your laptop (not the VM):
+
+```bash
+brev copy <your-instance-name>:~/profile-xarray-cupy-naive.nsys-rep .
+```
+
+`brev copy` takes `<source> <destination>`, so a `<instance>:<remote-path>` source and a local `.` destination pulls the `.nsys-rep` into your current directory. If `~` doesn't resolve on the remote, use the absolute path `/home/ubuntu/profile-xarray-cupy-naive.nsys-rep`.
+
+Finally, open it: launch Nsight Systems and use **File > Open** to select the `.nsys-rep` (or run `nsys-ui profile-xarray-cupy-naive.nsys-rep` from a terminal if the GUI's launcher is on your `PATH`). Zoom into the `CUDA HW` rows to explore the timeline.
+
 ![Nsight Systems timeline of xarray-cupy-naive.py](images/nsight-xarray-cupy-naive.png)
 
-These timelines are dense, so here's how to read them. Time runs left to right. The rows under `CUDA HW` show what the GPU actually did: the `Kernels` row is GPU compute, and the `Memory` row is the host-to-device and device-to-host copies. When those rows are empty, the GPU is idle. You produce the `.nsys-rep` on the VM, but exploring the timeline needs the Nsight Systems desktop app, so download the file to your laptop and open it there, or just follow the annotated screenshots in this section.
+These timelines are dense, so here's how to read them. Time runs left to right. The rows under `CUDA HW` show what the GPU actually did: the `Kernels` row is GPU compute, and the `Memory` row is the host-to-device and device-to-host copies. When those rows are empty, the GPU is idle. If you are having trouble opening the report, follow the annotated screenshots in this section.
 
 Reading the naive run left to right: a host-to-device `cudaMemcpy` near the start (the `cp.asarray(air)` call), a few small kernels for the reshape and mean-subtraction, then a long device-to-host `cudaMemcpy` (the `.get()`), and after that a long stretch where the `Kernels` and `Memory` rows are empty while the CPU runs SVD. That idle stretch is the bottleneck.
 
@@ -392,11 +420,17 @@ python scripts/xarray-cupy-fixed.py
 
 ```bash
 nsys profile \
-  --trace cuda,osrt,nvtx \
+  --trace cuda,osrt \
   --cuda-memory-usage true \
   --force-overwrite true \
   --output profile-xarray-cupy-fixed \
   $(which python) scripts/xarray-cupy-fixed.py
+```
+
+Copy this report down to your laptop and open it in Nsight Systems, the same way you did for the naive run:
+
+```bash
+brev copy <your-instance-name>:~/profile-xarray-cupy-fixed.nsys-rep .
 ```
 
 ![Nsight Systems timeline of xarray-cupy-fixed.py](images/nsight-xarray-cupy-fixed.png)
@@ -477,11 +511,17 @@ python scripts/preprocess-gpu-loop.py
 
 ```bash
 nsys profile \
-  --trace cuda,osrt,nvtx \
+  --trace cuda,osrt \
   --cuda-memory-usage true \
   --force-overwrite true \
   --output profile-preprocess-gpu-loop \
   $(which python) scripts/preprocess-gpu-loop.py
+```
+
+Copy this report down and open it in Nsight Systems as before:
+
+```bash
+brev copy <your-instance-name>:~/profile-preprocess-gpu-loop.nsys-rep .
 ```
 
 ![Nsight Systems timeline of the per-cell GPU loop](images/nsight-preprocess-gpu-loop.png)
