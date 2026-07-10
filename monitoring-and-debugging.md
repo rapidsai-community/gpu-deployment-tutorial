@@ -357,7 +357,7 @@ nsys profile \
   $(which python) scripts/xarray-cupy-naive.py
 ```
 
-These are what the various flags are for:
+These are what the various flags are for (For more information, check the [Nsight User Guide](https://docs.nvidia.com/nsight-systems/UserGuide/index.html#cli-profile-command-switch-options)):
 
 - `--trace cuda,osrt` : record GPU/CUDA activity plus CPU-side OS-runtime waits.
 - `--cuda-memory-usage true` : track GPU memory allocation over the run.
