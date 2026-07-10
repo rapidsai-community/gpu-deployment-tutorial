@@ -86,8 +86,6 @@ We can, have more insight on what's happening using the the built-in
 We have the line profiler that shows the source code and how much time each line
 spent executing on the GPU and CPU.
 
-TODO: add output pending <https://github.com/rapidsai/cudf/issues/23010>
-
 ```bash
 python -m cudf.pandas --line-profile scripts/pandas-workflow.py
 ```

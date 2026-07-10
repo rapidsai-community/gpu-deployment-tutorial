@@ -78,6 +78,8 @@ You can also poll `nvidia-smi` on a tight interval:
 watch -n 1 nvidia-smi
 ```
 
+You can exit of this view with `Ctrl+C`.
+
 Reach for `watch nvidia-smi` when you want to see snapshots of the current GPU state. Use `nvtop` when you want to see a timeline to check whether a running process is keeping the GPU busy.
 
 For fine-grained timeline profiling, install [Nsight Systems](https://developer.nvidia.com/nsight-systems). This tool is great for it when the GPU looks busy but the workload is still slow: it lays out CPU/GPU memory transfers, CUDA API calls, kernel launches, and synchronization points on a single timeline. We install it now and use it in detail later in this section. On a fresh VM you first need the NVIDIA CUDA apt repository, since the Nsight Systems package lives there:
@@ -179,7 +181,7 @@ With the tools mapped, let's understand a couple of GPU concepts.
 
 Both the host and our Python environment can see the GPU. Before we put a real workload on it, we need to understand a couple of concepts: how to time GPU work honestly, and why moving data is expensive.
 
-GPU work is often asynchronous. Python can enqueue work and keep executing before the GPU has finished. To see this, make a toy GPU array to perform operations on:
+GPU work is often asynchronous. Python can enqueue work and keep executing before the GPU has finished. To see this, open the python interpreter and make a toy GPU array to perform operations on:
 
 ```python
 import time
@@ -198,7 +200,8 @@ elapsed = time.perf_counter() - start
 print(f"without sync: {elapsed * 1e3:.3f} ms")  # misleadingly fast: the GPU may not be done
 ```
 
-To get a meaningful number, synchronize before stopping the timer:
+Exit the interpreter to avoid cached results, reopen it, create the array again. Now
+to get a meaningful number, synchronize before stopping the timer:
 
 ```python
 start = time.perf_counter()
@@ -213,8 +216,6 @@ Even with `synchronize()`, treat these timings as good estimates, not production
 ## Why data transfer becomes a bottleneck
 
 The CPU and GPU have separate memory. A NumPy array lives in host memory. A CuPy array lives in device memory. Moving data from host to device is a CPU-to-GPU transfer, and moving it back is a GPU-to-CPU transfer.
-
-<!-- TODO(image): add a host/device memory diagram here, separate system RAM vs VRAM joined by a narrow PCIe link, with labeled H2D (cp.asarray) and D2H (.get()) arrows, to show why transfers cost. Pull a suitable diagram from the CUDA repo. Tracking issue: TBD. -->
 
 Those transfers aren't free. For a small workload, the transfer overhead can outweigh the benefit of GPU computation. For a larger workflow, repeated transfers can erase an otherwise good speedup. This is why just using the GPU isn't enough. The useful question is whether enough of the expensive work stayed on the GPU long enough to justify the transfer.
 
