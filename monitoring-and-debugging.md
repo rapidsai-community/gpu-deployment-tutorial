@@ -114,7 +114,7 @@ Use the Python environment you created earlier in the tutorial. The exact packag
 source ~/.venv/bin/activate
 ```
 
-(If you used conda, run `conda activate tutorial-env` instead; if pixi, run the section's commands through `pixi run` from `envs/`, or open a `pixi shell`.)
+(If you used conda, run `conda activate tutorial-env` instead and if you used pixi, use `pixi shell --manifest-path envs/pixi.toml`)
 
 Then confirm `python` points where you expect:
 
@@ -220,8 +220,6 @@ Even with `synchronize()`, treat these timings as good estimates, not production
 ## Why data transfer becomes a bottleneck
 
 The CPU and GPU have separate memory. A NumPy array lives in host memory. A CuPy array lives in device memory. Moving data from host to device is a CPU-to-GPU transfer, and moving it back is a GPU-to-CPU transfer.
-
-<!-- TODO(image): add a host/device memory diagram here, separate system RAM vs VRAM joined by a narrow PCIe link, with labeled H2D (cp.asarray) and D2H (.get()) arrows, to show why transfers cost. Pull a suitable diagram from the CUDA repo. Tracking issue: TBD. -->
 
 Those transfers aren't free. For a small workload, the transfer overhead can outweigh the benefit of GPU computation. For a larger workflow, repeated transfers can erase an otherwise good speedup. This is why just using the GPU isn't enough. The useful question is whether enough of the expensive work stayed on the GPU long enough to justify the transfer.
 
@@ -358,6 +356,14 @@ nsys profile \
   --output profile-xarray-cupy-naive \
   $(which python) scripts/xarray-cupy-naive.py
 ```
+
+These are what the various flags are for:
+
+- `--trace cuda,osrt` : record GPU/CUDA activity plus CPU-side OS-runtime waits.
+- `--cuda-memory-usage true` : track GPU memory allocation over the run.
+- `--force-overwrite true` : replace an existing report of the same name.
+- `--output profile-xarray-cupy-naive` : name of the `.nsys-rep` file.
+- `$(which python) scripts/xarray-cupy-naive.py` : the program to profile
 
 At the end of the run, `nsys` prints where it wrote the report. On Brev that's your home directory:
 
