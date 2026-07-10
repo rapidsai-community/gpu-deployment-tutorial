@@ -370,7 +370,7 @@ Capturing happens on the VM, but exploring the timeline needs the **Nsight Syste
 
 Install the Nsight Systems GUI on your laptop once, from the [Nsight Systems page](https://developer.nvidia.com/nsight-systems). This desktop application is separate from the `nsys` command-line tool you installed on the VM.
 
-Then copy the report down from Brev. Run this from a new terminal on your laptop (not the VM):
+Then copy the report down from Brev. Run this from a new terminal on your laptop (not the VM) in the location you want the file to be saved:
 
 ```bash
 brev copy <your-instance-name>:~/profile-xarray-cupy-naive.nsys-rep .
