@@ -8,17 +8,17 @@ paginate: true
 <!-- _paginate: false -->
 
 # Understanding GPUs
-## From the *device* to *RAPIDS* : how the pieces fit together
+## From the *GPU* to *RAPIDS* : how the pieces fit together
 
 **Jaya Venkatesh and Naty Clementi · NVIDIA**
-SciPy 2026 · GPU Deployment & Debugging Tutorial ·
+SciPy 2026 · GPU Deployment & Debugging Tutorial
 
 ---
 
 # Why bring data science to the GPU?
 
 <div class="cards3">
-  <div class="card"><h3>Bigger data</h3><p>Datasets keep outgrowing what's comfortable on a CPU</p></div>
+  <div class="card"><h3>Bigger data</h3><p>Datasets keep outgrowing the power of CPUs</p></div>
   <div class="card"><h3>Parallel by nature</h3><p>Filtering, aggregating, and math over millions of rows are independent</p></div>
   <div class="card"><h3>Familiar APIs</h3><p>You can get there without leaving Python</p></div>
 </div>
@@ -72,7 +72,7 @@ SciPy 2026 · GPU Deployment & Debugging Tutorial ·
 </div>
 
 - CPU cores are **few but powerful**, great at complex, branchy logic
-- GPU cores are **many but simple**, built to all do the **same operation** on different data, together
+- GPU cores are **many but simple**, built to all do the **same operation** on different data, in parallel
 - The more your work splits into **independent pieces**, the more **using the GPU pays off**
 
 ---
@@ -139,7 +139,7 @@ The GPU runs **one operation across thousands of elements at once**, one **threa
 <div class="tl">
 <div class="tlcol"><div class="h">Sequential</div>
 <img class="ig" src="images/infographics/seqbar.svg" />
-<div class="t">one after another → time →</div>
+<div class="t">one after another → time</div>
 </div>
 <div class="tlcol"><div class="h">Parallel</div>
 <img class="ig" src="images/infographics/parstack.svg" />
@@ -149,7 +149,7 @@ The GPU runs **one operation across thousands of elements at once**, one **threa
 
 <br>
 
-- When work items are **independent**, their order doesn't matter: item B doesn't need item A's result
+- When work items are **independent**, their order doesn't matter i.e item B doesn't need item A's result
 - A GPU runs a **huge number of independent items at the same time**
 - Step-by-step work that must run **in order** can't use that; this isn't where a GPU shines
 
@@ -227,7 +227,7 @@ The GPU runs **one operation across thousands of elements at once**, one **threa
 
 **CUDA** is NVIDIA's parallel-computing **platform + programming model**, built on **C/C++** for its low-level speed and control over the hardware.
 
-- You write GPU code as **kernels** in **CUDA C/C++**: standard C/C++ plus a few extensions, compiled by `nvcc`
+- You write GPU code as **kernels** in **CUDA C/C++**: standard C++/C plus a few extensions, compiled by `nvcc`
 - The **host** (CPU) runs serial code and **launches kernels** on the **device** (GPU)
 - Serial host code and parallel kernels **alternate** (see diagram →)
 
@@ -272,16 +272,16 @@ Everything above the driver is **built on the Toolkit**. It provides:
   <div class="card"><h3>Compiler &amp; runtime</h3><p>nvcc, libcudart, headers</p></div>
   <div class="card"><h3>Math libraries</h3><p>cuBLAS, cuFFT, cuSPARSE, cuSOLVER, cuRAND</p></div>
   <div class="card"><h3>Communication</h3><p>NCCL, NVSHMEM for multi-GPU</p></div>
-  <div class="card"><h3>Why it's central</h3><p>cuDF, cuML &amp; CuPy don't reinvent math, they call these</p></div>
+  <!-- <div class="card"><h3>Why it's central</h3><p>cuDF, cuML &amp; CuPy don't reinvent math, they call these</p></div> -->
 </div>
 
 > These hand-tuned libraries are the **ready-made kernels**: the sorts, joins, and math behind your data work come straight from here.
 
 ---
 
-# CUDA Python: pick the right door
+# CUDA Python: pick your entrypoint
 
-You don't have to write C++ to use CUDA. Match the door to the need:
+You don't have to write C++ to use CUDA.
 
 <div class="cards3">
   <div class="card"><h3>CuPy</h3><p>"I have NumPy code" → swap in GPU arrays</p></div>
@@ -291,7 +291,7 @@ You don't have to write C++ to use CUDA. Match the door to the need:
 
 <br>
 
-> All three reach the **same CUDA underneath**. RAPIDS sits on top of them, so most of the time you won't pick a door at all.
+> All three reach the **GPU underneath**.
 
 ---
 
@@ -343,9 +343,9 @@ RAPIDS packages thousands of **optimized GPU kernels** behind APIs you already k
 
 <div class="stack">
   <div class="layer">Your code &amp; notebooks <small>pandas, scikit-learn, NumPy, your scripts</small></div>
-  <div class="layer">RAPIDS <small>cuDF · cuML · cuGraph, the data-science slice of CUDA-X</small></div>
+  <div class="layer">RAPIDS and CUDA-X <small>cuDF · cuML · cuGraph, the data-science slice of CUDA-X</small></div>
   <div class="layer">CUDA Python <small>cuda.core · cuda.bindings · Numba · CuPy</small></div>
-  <div class="layer">CUDA-X + CUDA Toolkit <small>cuBLAS · cuSPARSE · NCCL · libcudart · nvcc</small></div>
+  <div class="layer">CUDA Toolkit <small>cuBLAS · cuSPARSE · NCCL · libcudart · nvcc</small></div>
   <div class="layer host">NVIDIA driver <small>libcuda, the system layer that talks to the hardware</small></div>
   <div class="layer hw">GPU hardware <small>SMs · warps · thousands of cores · VRAM</small></div>
 </div>
