@@ -11,14 +11,13 @@ For the in-person version of this tutorial we will use [NVIDIA Brev](https://bre
 
 ### Content
 
-<!-- TODO: update links to full GitHub URLs once the repo is public -->
 | Module | Link |
-| --- | --- |
-| 1 - Setup Brev | [1-setup.md](1-setup.md) |
-| 2 - Setting Up Your GPU Python Environment | [2-environments.md](2-environments.md) |
-| 3 - Verifying Your Environment with the RAPIDS CLI | [3-rapids-cli-verify-env.md](3-rapids-cli-verify-env.md) |
-| 4 - Easy GPU Acceleration Wins with RAPIDS Accelerators | [4-acceleration-examples.md](4-acceleration-examples.md) |
-| 5 - Monitoring and Debugging GPU Python Workloads | [5-monitoring-and-debugging.md](5-monitoring-and-debugging.md) |
+| 0 - Introduction Slides | [introduction-to-gpu-stack.html](https://rapidsai-community.github.io/gpu-deployment-tutorial/introduction/introduction-to-gpu-stack.html) |
+| 1 - Setup Brev | [1-setup.md](https://rapidsai-community.github.io/gpu-deployment-tutorial/1-setup.html) |
+| 2 - Setting Up Your GPU Python Environment | [2-environments.md](https://rapidsai-community.github.io/gpu-deployment-tutorial/2-environments.html) |
+| 3 - Verifying Your Environment with the RAPIDS CLI | [3-rapids-cli-verify-env.md](https://rapidsai-community.github.io/gpu-deployment-tutorial/3-rapids-cli-verify-env.html) |
+| 4 - Easy GPU Acceleration Wins with RAPIDS Accelerators | [4-acceleration-examples.md](https://rapidsai-community.github.io/gpu-deployment-tutorial/4-acceleration-examples.html) |
+| 5 - Monitoring and Debugging GPU Python Workloads | [5-monitoring-and-debugging.md](https://rapidsai-community.github.io/gpu-deployment-tutorial/5-monitoring-and-debugging.html) |
 
 ### 1-Setup Brev
 
