@@ -12,8 +12,8 @@ dependencies:
   - xarray
   - netcdf4
   - cupy>=14
-  - cudf=26.8
-  - cuml=26.8
+  - cudf=26.8.0a894
+  - cuml=26.8.0a145
   - cuda-python
   - cupy-xarray
   - cuda-core
