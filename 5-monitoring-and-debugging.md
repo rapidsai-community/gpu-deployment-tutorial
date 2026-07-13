@@ -188,34 +188,25 @@ With the tools mapped, let's understand a couple of GPU concepts.
 
 Both the host and our Python environment can see the GPU. Before we put a real workload on it, we need to understand a couple of concepts: how to time GPU work honestly, and why moving data is expensive.
 
-GPU work is often asynchronous. Python can enqueue work and keep executing before the GPU has finished. To see this, open the python interpreter and make a toy GPU array to perform operations on:
+GPU work is often asynchronous. Python can enqueue work and keep executing before the GPU has finished. To see this, open the python interpreter and run the following example:
 
 ```python
 import time
-
 import cupy as cp
 
-gpu_array = cp.arange(50_000_000, dtype=cp.float32)
-```
-
-So timing like this is misleading:
-
-```python
-start = time.perf_counter()
-result = gpu_array * 2
-elapsed = time.perf_counter() - start
-print(f"without sync: {elapsed * 1e3:.3f} ms")  # misleadingly fast: the GPU may not be done
-```
-
-Exit the interpreter to avoid cached results, reopen it, create the array again. Now
-to get a meaningful number, synchronize before stopping the timer:
-
-```python
-start = time.perf_counter()
-result = gpu_array * 2
+# Warmup
+cp.arange(100_000_000, dtype=cp.float32) * 2
 cp.cuda.Stream.null.synchronize()
-elapsed = time.perf_counter() - start
-print(f"with sync: {elapsed * 1e3:.3f} ms")
+
+start = time.perf_counter()
+result = cp.arange(100_000_000, dtype=cp.float32) * 2
+t_cpu = time.perf_counter() - start       # CPU stopped here, GPU still running
+
+cp.cuda.Stream.null.synchronize()
+t_gpu = time.perf_counter() - start       # GPU actually finished here  
+
+print(f"without sync: {t_cpu * 1e3:.3f} ms  ← wrong")
+print(f"with sync:    {t_gpu * 1e3:.3f} ms  ← correct")
 ```
 
 Even with `synchronize()`, treat these timings as good estimates, not production benchmarks. They're accurate enough to compare how long the GPU spent on a task, which is all we need here.
