@@ -12,9 +12,9 @@ dependencies = [
     "netCDF4",
     "cupy-xarray",
     "cuda-core[cu13]",
-    "cudf-cu13>=26.8.0a0,<=26.8",
-    "cuml-cu13>=26.8.0a0,<=26.8",
-    "dask-cuda>=26.8.0a0,<=26.8",
+    "cudf-cu13==26.8.0a894",
+    "cuml-cu13==26.8.0a145",
+    "dask-cuda==26.8.0a13",
     "jupyterlab-nvdashboard>=0.15",
     "rapids-cli>=0.2.0",
 ]
