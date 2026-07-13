@@ -267,6 +267,55 @@ Look for:
 If a row-wise or Python-object-heavy operation falls back to CPU, that is often
 the next place to simplify the workflow.
 
+### An example that falls back to the CPU
+
+Some pandas features have no GPU equivalent. When `cudf.pandas` cannot run an operation,
+it gracefully falls back to pandas on CPU. Complex-number columns are one
+such case, since cuDF has no complex dtype, so even building the dataframe falls
+back immediately.
+
+Pass the code inline with `-c` and profile it:
+
+```bash
+python -m cudf.pandas --profile -c "
+import pandas as pd
+
+df = pd.DataFrame({'complex_col': [1 + 2j, 3 + 4j, 5 + 6j]})
+print(df)
+"
+```
+
+The profile shows zero GPU function calls; every operation fell back to CPU:
+
+```txt
+   complex_col
+0     1.0+2.0j
+1     3.0+4.0j
+2     5.0+6.0j
+
+                                     Total time elapsed: 1.112 seconds
+                                   0 GPU function calls in 0.000 seconds
+                                   2 CPU function calls in 0.025 seconds
+
+                                                   Stats
+
+┏━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━━━━━┓
+┃ Function       ┃ GPU ncalls ┃ GPU cumtime ┃ GPU percall ┃ CPU ncalls ┃ CPU cumtime ┃ CPU percall ┃
+┡━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━━━━━━┩
+│ DataFrame      │ 0          │ 0.000       │ 0.000       │ 1          │ 0.005       │ 0.005       │
+│ object.__str__ │ 0          │ 0.000       │ 0.000       │ 1          │ 0.020       │ 0.020       │
+└────────────────┴────────────┴─────────────┴─────────────┴────────────┴─────────────┴─────────────┘
+Not all pandas operations ran on the GPU. The following functions required CPU fallback:
+
+- DataFrame
+- object.__str__
+
+To request GPU support for any of these functions, please file a Github issue here:
+https://github.com/rapidsai/cudf/issues/new/choose.
+```
+
+From the output above, you can see that both of these operations are not GPU-accelerated, but ran gracefully on the CPU.
+
 ## scikit-learn Workflow: Baseline CPU Run
 
 Similarly, we have `cuml.accel` for `scikit-learn`, `UMAP`, and `HDBSCAN`
