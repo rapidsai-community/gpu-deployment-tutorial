@@ -13,7 +13,7 @@ dependencies = [
     "cupy-xarray",
     "cuda-core[cu13]",
     "cudf-cu13==26.8.0a982",
-    "cuml-cu13==26.8.0a230",
+    "cuml-cu13==26.8.0a161",
     "dask-cuda==26.8.0a13",
     "jupyterlab-nvdashboard>=0.15",
     "rapids-cli>=0.2.0",
